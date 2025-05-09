@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "getCookies":"node src/get_cookies.js",
-    "screenshot": "node src/index.js"
+    "screenshot": "node src/index.js",
+    "parallel": "node src/parallel_index.js",
+    "retry": "node src/index_with_retry.js"
   },
   "dependencies": {
     "playwright": "^1.52.0"

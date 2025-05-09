@@ -14,7 +14,7 @@ const { log } = require('console');
   const page = await context.newPage();
 
   for (const item of input) {
-    const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}`;
+    const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，思考不用特别久`;
 
     await page.goto('https://chat.deepseek.com', { waitUntil: 'domcontentloaded' });
 
@@ -48,10 +48,10 @@ const { log } = require('console');
     // 1. 监听最后一条消息内容是否稳定
     let lastContent = '';
     let stableCount = 0;
-    let answerSelector = 'ds-markdown ds-markdown--block'; // 需根据实际页面结构调整
+    let answerSelector = '.ds-markdown.ds-markdown--block'; // 需根据实际页面结构调整
     let answerText = '';
 
-    for (let i = 0; i < 60; i++) { // 最多等待 60*2=120 秒
+    for (let i = 0; i < 5*60; i++) { // 最多等待 5*60*2=10 min
       // 获取最后一条回答内容
       answerText = await page.evaluate((selector) => {
         const nodes = Array.from(document.querySelectorAll(selector));
@@ -68,15 +68,21 @@ const { log } = require('console');
       await page.waitForTimeout(2000);
     }
 
+    // 确保 deepseek 目录存在
+    const deepseekDir = path.join(__dirname, 'deepseek');
+    if (!fs.existsSync(deepseekDir)) {
+      fs.mkdirSync(deepseekDir, { recursive: true });
+    }
+
     // 2. 获取全部对话内容并保存
     const allMessages = await page.evaluate((selector) => {
       return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
     }, answerSelector);
-    const resultPath = path.join(__dirname, `deepseek_output_${item.question_number}.json`);
+    const resultPath = path.join(deepseekDir, `deepseek_output_${item.question_number}.json`);
     fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages }, null, 2), 'utf-8');
 
     // 3. 截图
-    const screenshotPath = path.join(__dirname, `deepseek_output_${item.question_number}.png`);
+    const screenshotPath = path.join(deepseekDir, `deepseek_output_${item.question_number}.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
     console.log(`✅ 已保存截图：${screenshotPath}，对话内容：${resultPath}`);
