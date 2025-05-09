@@ -1,0 +1,16 @@
+{
+  "name": "question-capture-workflow",
+  "version": "1.0.0",
+  "description": "从试卷中提取题目并截图 LLM 回答的自动化脚本",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "getCookies":"node src/get_cookies.js",
+    "screenshot": "node src/index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  },
+  "author": "",
+  "license": "MIT"
+}
