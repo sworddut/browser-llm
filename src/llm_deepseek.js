@@ -2,129 +2,224 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-// DeepSeek/元宝自动化主流程，导出为 processQuestion
+// 从 utils/index.js 导入函数
+const { waitForSSECompletion_SimpleText, scrollToElementBottom } = require('./utils/index');
+
+// DeepSeek/元宝自动化主流程
 async function processQuestion(item) {
-  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，给一个最后答案的总结，思考不用太久`;
-  let answerSelector = '.hyc-component-reasoner__text';
-  const deepseekDir = path.join(__dirname,'outputs','deepseek');
-  if (!fs.existsSync(deepseekDir)) {
-    fs.mkdirSync(deepseekDir, { recursive: true });
+  const originalPromptForSaving = item.prompt || item.specific_questions.join('\n');
+  const questionNumber = item.question_number;
+  const logPrefix = `[deepseek Q${questionNumber}] `;
+
+  const constructedPrompt = `${logPrefix}问题编号：${questionNumber}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，给一个最后答案的总结，思考不用太久，如果全部完成回答请输出"回答完毕"`;
+  
+  const answerSelector = '.hyc-component-reasoner__text';
+  const scrollContainerSelector = '.agent-chat__list__content-wrapper';
+  const inputSelector = '.ql-editor[contenteditable="true"]';
+
+  const sseUrlPattern = 'https://yuanbao.tencent.com/api/chat/';
+  const sseDoneSignal = '[DONE]';
+  const sseTimeoutMs = 5 * 60 * 1000;
+
+  const yuanbaoDir = path.join(__dirname, 'outputs', 'deepseek');
+  if (!fs.existsSync(yuanbaoDir)) {
+    fs.mkdirSync(yuanbaoDir, { recursive: true });
   }
-  let resultPath = path.join(deepseekDir, `deepseek_output_${item.question_number}.json`);
-  // 跳过已完成
+  const resultPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.json`);
+  const screenshotPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.png`);
+
   if (fs.existsSync(resultPath)) {
-    console.log(`题号 ${item.question_number} 已有结果，跳过...`);
+    console.log(`${logPrefix}已有结果，跳过...`);
     return;
   }
+
   let retryCount = 0;
   const maxRetry = 2;
-  let continueCount = 0;
-  const maxContinue = 5;
   let allMessages = [];
+  let browser; 
 
-  // 启动浏览器和 context
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext({
-    storageState: 'deepseek-state.json'
-  });
-  const page = await context.newPage();
+  try {
+    browser = await chromium.launch({ headless: false }); // Consider headless: true for production
+    
+    while (retryCount <= maxRetry) {
+      console.log(`${logPrefix}开始处理，尝试 #${retryCount + 1}/${maxRetry + 1}`);
+      allMessages = [];
+      let currentContinueCount = 0;
+      const maxContinuePerAttempt = 3;
+      let context; 
+      let page;    
 
-  while (retryCount <= maxRetry) {
-    let gotDone = false;
-    let apiError = false;
-    const onResponse = async (response) => {
-      const url = response.url();
-      if (url.startsWith('https://yuanbao.tencent.com/api/chat/')) {
-        try {
-          const data = await response.text();
-          if (data.includes('[DONE]')) {
-            gotDone = true;
-          }
-        } catch (e) {
-          apiError = true;
-        }
-      }
-    };
-    page.on('response', onResponse);
-    try {
-      await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded' });
-      // 关闭广告弹窗
       try {
-        await page.waitForSelector('[class^="index_close_"]', { timeout: 5000 });
-        await page.click('[class^="index_close_"]');
-        console.log('已自动关闭广告弹窗');
-      } catch (e) {
-        console.log('未检测到广告弹窗');
-      }
-      await page.waitForSelector('.ql-editor[contenteditable="true"]', { timeout: 15000 });
-      await page.evaluate((text) => {
-        const inputDiv = document.querySelector('.ql-editor[contenteditable="true"]');
-        if (inputDiv) {
-          inputDiv.innerHTML = text.split('\n').map(line => `<p>${line}</p>`).join('');
-        }
-      }, prompt);
-      await page.focus('.ql-editor[contenteditable="true"]');
-      await page.keyboard.press('Enter');
-      // 等待 [DONE] 或超时
-      let waitTime = 0;
-      const MAX_WAIT = 5 * 60 * 1000;
-      while (!gotDone && waitTime < MAX_WAIT && !apiError) {
-        await page.waitForTimeout(1000);
-        waitTime += 1000;
-      }
-      // 获取全部对话内容
-      allMessages = await page.evaluate((selector) => {
-        return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
-      }, answerSelector);
-      // 判断是否需要继续
-      if (!gotDone && continueCount < maxContinue) {
-        continueCount++;
-        console.log('未检测到 [DONE]，自动输入“继续”补全...');
-        await page.waitForSelector('.ql-editor[contenteditable="true"]', { timeout: 15000 });
-        await page.evaluate(() => {
-          const inputDiv = document.querySelector('.ql-editor[contenteditable="true"]');
-          if (inputDiv) {
-            inputDiv.innerHTML = '<p>继续</p>';
-          }
+        context = await browser.newContext({
+          storageState: 'deepseek-state.json' 
         });
-        await page.focus('.ql-editor[contenteditable="true"]');
-        await page.keyboard.press('Enter');
-        // 继续等待下一轮 [DONE]
-        let waitTime2 = 0;
-        while (!gotDone && waitTime2 < MAX_WAIT && !apiError) {
-          await page.waitForTimeout(1000);
-          waitTime2 += 1000;
+        page = await context.newPage();
+        await page.setViewportSize({ width: 1280, height: 900 }); // Set a consistent viewport
+
+        await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+        try {
+          const adCloseButton = page.locator('[class^="index_close_"]');
+          await adCloseButton.waitFor({ state: 'visible', timeout: 10000 });
+          await adCloseButton.click({ timeout: 3000 });
+          console.log(`${logPrefix}已关闭广告弹窗`);
+        } catch (e) {
+          console.log(`${logPrefix}未检测到广告弹窗或关闭超时，或弹窗不存在。`);
         }
-        allMessages = await page.evaluate((selector) => {
-          return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
-        }, answerSelector);
+
+        await page.waitForSelector(inputSelector, { state: 'visible', timeout: 30000 });
+        console.log(`${logPrefix}输入框可见`);
+
+        async function sendTextAndWaitForCompletion(textToSend, isContinuation = false) {
+          const inputElement = page.locator(inputSelector);
+          await inputElement.waitFor({ state: 'visible', timeout: 15000 });
+          
+          // Clear and type
+          await inputElement.fill(''); 
+          // For complex inputs, sometimes programmatic paste is more reliable if direct fill/type has issues
+          // await page.evaluate(({ selector, text }) => {
+          //   const el = document.querySelector(selector);
+          //   if (el) el.innerHTML = text.split('\n').map(line => `<p>${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`).join('');
+          // }, { selector: inputSelector, text: textToSend });
+          // await inputElement.pressSequentially(textToSend, { delay: 30 }); // Slower typing
+          await inputElement.fill(textToSend); // Simpler fill, often works if text doesn't need HTML formatting.
+
+          await inputElement.focus();
+
+          const ssePromise = waitForSSECompletion_SimpleText(page, sseUrlPattern, sseDoneSignal, sseTimeoutMs, { log: true, logPrefix });
+
+          await page.keyboard.press('Enter');
+          console.log(`${logPrefix}"${isContinuation ? '继续' : 'Prompt'}" 已发送, 等待 SSE [DONE]...`);
+          
+          await ssePromise; 
+          console.log(`${logPrefix}SSE [DONE] 已收到 for "${isContinuation ? '继续' : 'Prompt'}".`);
+          
+          await page.waitForTimeout(700); // Increased delay after SSE for rendering
+
+          await scrollToElementBottom(page, scrollContainerSelector, 700, { log: true, logPrefix });
+
+          const currentMessagesOnPage = await page.locator(answerSelector).allInnerTexts();
+          
+          if (currentMessagesOnPage.length > 0) {
+              allMessages = currentMessagesOnPage.map(msg => msg.trim());
+          } else if (!isContinuation) {
+              console.warn(`${logPrefix}Initial prompt did not yield any messages with selector "${answerSelector}"`);
+          }
+        }
+
+        await sendTextAndWaitForCompletion(constructedPrompt);
+
+        const stopContinuingKeywords = ["总结完毕", "回答完毕", "没有更多内容", "已经全部", "上述总结", "希望以上回复对您有所帮助"];
+        let lastMessageText = allMessages.length > 0 ? allMessages[allMessages.length - 1].toLowerCase() : "";
+        
+        // Initial check if the first response itself contains stop keywords
+        if (stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))) {
+             console.log(`${logPrefix}初始回答已包含停止关键词，不发送“继续”。`);
+        } else {
+            while (
+                currentContinueCount < maxContinuePerAttempt &&
+                allMessages.length > 0 && 
+                !stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))
+            ) {
+            
+                await page.waitForTimeout(2000 + Math.random() * 1500); 
+
+                currentContinueCount++;
+                console.log(`${logPrefix}尝试发送 "继续" (${currentContinueCount}/${maxContinuePerAttempt})...`);
+                await sendTextAndWaitForCompletion("继续", true);
+                if (allMessages.length > 0) {
+                    lastMessageText = allMessages[allMessages.length - 1].toLowerCase();
+                } else {
+                    console.warn(`${logPrefix}"继续" 后未获取到消息。停止“继续”。`);
+                    break; 
+                }
+
+                if (stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))) {
+                    console.log(`${logPrefix}检测到停止关键词，停止“继续”。`);
+                    break;
+                }
+            }
+        }
+
+        if (allMessages.length === 0) {
+            console.warn(`${logPrefix}最终未获取到任何消息。将保存空消息数组。`);
+        }
+
+        console.log(`${logPrefix}内容获取完毕，准备保存结果...`);
+        fs.writeFileSync(resultPath, JSON.stringify({ prompt: originalPromptForSaving, messages: allMessages }, null, 2), 'utf-8');
+        console.log(`${logPrefix}结果已保存至 ${resultPath}`);
+
+        await scrollToElementBottom(page, scrollContainerSelector, 500, { log: true, logPrefix });
+        
+        const scrollLocator = page.locator(scrollContainerSelector);
+        const boundingBox = await scrollLocator.boundingBox();
+        if (boundingBox) {
+          await page.screenshot({ path: screenshotPath, clip: boundingBox, timeout: 15000 });
+        } else {
+          console.warn(`${logPrefix}无法获取滚动容器 "${scrollContainerSelector}" 的边界框，将进行全页截图。`);
+          await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 15000 });
+        }
+        console.log(`${logPrefix}截图已保存至 ${screenshotPath}`);
+
+        // Attempt successful, close context and break retry loop
+        await context.close();
+        console.log(`${logPrefix}尝试 #${retryCount + 1}成功。`);
+        break; // Exit the while loop for retries
+
+      } catch (err) { // Catch for single attempt
+        console.error(`${logPrefix}在尝试 #${retryCount + 1} 时发生错误: ${err.message}`);
+        if (err.stack) console.error(err.stack.split('\n').slice(0, 5).join('\n')); // Shorter stack
+
+        // Screenshot on error for this attempt
+        if (page && !page.isClosed()) {
+            const errorScreenshotPath = path.join(yuanbaoDir, `deepseek_error_${questionNumber}_attempt_${retryCount + 1}.png`);
+            try {
+                await page.screenshot({ path: errorScreenshotPath, fullPage: true, timeout: 10000 });
+                console.log(`${logPrefix}错误截图已保存: ${errorScreenshotPath}`);
+            } catch (scError) {
+                console.error(`${logPrefix}保存错误截图失败: ${scError.message}`);
+            }
+        }
+        
+        retryCount++;
+        if (context && browser.contexts().includes(context)) { // Check if context exists and belongs to browser
+            try {
+                await context.close();
+            } catch (closeError) {
+                console.warn(`${logPrefix}关闭失败的 context 时出错: ${closeError.message}`);
+            }
+        }
+
+        if (retryCount > maxRetry) {
+          console.error(`${logPrefix}达到最大重试次数 (${maxRetry + 1}) 后仍失败.`);
+          fs.writeFileSync(resultPath, JSON.stringify({
+            prompt: originalPromptForSaving,
+            error: `Failed after ${maxRetry + 1} attempts. Last error: ${err.message}`,
+            messages: allMessages // Save whatever messages were collected in the last failed attempt
+          }, null, 2), 'utf-8');
+          // No need to break here, loop condition will handle it
+        } else {
+           console.log(`${logPrefix}准备重试... 等待几秒钟...`);
+           await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s before retrying
+        }
       }
-      // 保存结果
-      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages }, null, 2), 'utf-8');
-      // 截图前滚动到底部
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-      await page.waitForTimeout(500);
-      await page.screenshot({ path: path.join(deepseekDir, `deepseek_output_${item.question_number}.png`) });
-      page.removeListener('response', onResponse);
+    } // End of while (retryCount <= maxRetry)
+
+  } catch (browserError) { // Catch for browser launch or other top-level errors
+    console.error(`${logPrefix}发生严重的浏览器级别错误: ${browserError.message}`);
+    if (browserError.stack) console.error(browserError.stack);
+    // Ensure result file indicates a catastrophic failure if it hasn't been written to yet
+    if (!fs.existsSync(resultPath)) {
+        fs.writeFileSync(resultPath, JSON.stringify({
+            prompt: originalPromptForSaving,
+            error: `Catastrophic browser error: ${browserError.message}`,
+            messages: []
+        }, null, 2), 'utf-8');
+    }
+  } finally {
+    if (browser && browser.isConnected()) {
       await browser.close();
-      return;
-    } catch (err) {
-      retryCount++;
-      page.removeListener('response', onResponse);
-      if (retryCount > maxRetry) {
-        console.error(`第${item.question_number}题重试${maxRetry}次后仍失败：`, err);
-        await browser.close();
-        return;
-      }
-      console.log('页面异常，刷新重试...');
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      try {
-        await page.waitForSelector('[class^="index_close_"]', { timeout: 3000 });
-        await page.click('[class^="index_close_"]');
-      } catch (e) {}
-      continue;
+      console.log(`${logPrefix}浏览器已关闭。`);
     }
   }
 }

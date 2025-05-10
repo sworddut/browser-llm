@@ -161,6 +161,117 @@ async function waitForSSECompletion(page, targetUrlPart, completionChecker, time
   }
 
 /**
+ * (New Version - For Yuanbao or simple text-based SSE completion)
+ * Waits for an SSE (Server-Sent Events) stream from a specific URL to signal completion
+ * by checking the *entire response text* for a specific string.
+ * This version DOES NOT attempt to parse individual SSE lines beyond finding the signal.
+ * The Promise resolves on successful detection of the signal, and rejects on timeout or error.
+ *
+ * @param {import('playwright').Page} page - The Playwright page object.
+ * @param {string | RegExp} urlPattern - A string (e.g., URL prefix) or RegExp to match the SSE stream URL.
+ * @param {string} doneSignalText - The text string in the SSE data that indicates completion (e.g., "[DONE]").
+ * @param {number} [timeoutMs=300000] - Timeout in milliseconds (default: 5 minutes).
+ * @param {object} [options] - Optional parameters.
+ * @param {boolean} [options.log=false] - Whether to log progress.
+ * @param {string} [options.logPrefix='[SSE_SimpleText]'] - Prefix for logs.
+ * @returns {Promise<void>} Resolves when the done signal is found in a matched response, rejects on timeout or if signal not found in any matched response.
+ */
+async function waitForSSECompletion_SimpleText(page, urlPattern, doneSignalText, timeoutMs = 5 * 60 * 1000, options = {}) {
+  const { log = false, logPrefix = '[SSE_SimpleText]' } = options;
+
+  return new Promise((resolve, reject) => {
+    let timeoutId = null;
+    let listenerActive = true; // Guard to ensure cleanup and single resolution
+
+    const sseListener = async (response) => {
+      if (!listenerActive) return;
+
+      const resUrl = response.url();
+      let match = false;
+      if (typeof urlPattern === 'string' && resUrl.startsWith(urlPattern)) {
+        match = true;
+      } else if (urlPattern instanceof RegExp && urlPattern.test(resUrl)) {
+        match = true;
+      }
+
+      if (match) {
+        if (log) console.log(`${logPrefix} Matched URL: ${resUrl}`);
+        try {
+          const status = response.status(); // Get status *before* awaiting text() potentially
+
+          // Wait for the response to fully complete before checking its content.
+          // response.text() waits for the response to finish and returns the full body.
+          const responseBodyText = await response.text(); // Can throw if response is aborted
+
+          if (status >= 400) { // Check status AFTER getting body in case issues are post-headers
+            if (!listenerActive) return;
+            listenerActive = false;
+            clearTimeout(timeoutId);
+            page.removeListener('response', sseListener);
+            const errorMsg = `SSE stream error: HTTP ${status} for URL ${resUrl}. Body: ${responseBodyText.slice(0,100)}`;
+            if (log) console.warn(`${logPrefix} ${errorMsg}`);
+            reject(new Error(errorMsg));
+            return;
+          }
+
+          if (responseBodyText.includes(doneSignalText)) {
+            if (!listenerActive) return;
+            listenerActive = false;
+            clearTimeout(timeoutId);
+            page.removeListener('response', sseListener);
+            if (log) console.log(`${logPrefix} "${doneSignalText}" found in response from ${resUrl}.`);
+            resolve(); // Signal found, success!
+          } else {
+            // This 'else' branch means a *matched* response completed *without* the done signal.
+            // For SSE, this might be an intermediate response if the stream is broken into multiple HTTP responses (rare).
+            // More commonly, it means THE API call that was supposed to give [DONE] finished but didn't.
+            // For this _SimpleText version, we usually expect one response to contain the [DONE].
+            // If it could be spread across multiple 'response' events for the same logical stream, this function would need to aggregate.
+            // However, standard SSE is one HTTP connection.
+            if (log) console.log(`${logPrefix} "${doneSignalText}" NOT found in completed response from ${resUrl}. Listener remains active for other potential matches or timeout.`);
+            // DO NOT reject here immediately. Another 'response' event might match, or timeout will handle it.
+            // If this was THE ONLY expected response, timeout will catch it.
+            // If you are certain that any matched response *must* contain [DONE] or it's an error, you could reject:
+            // if (!listenerActive) return;
+            // listenerActive = false;
+            // clearTimeout(timeoutId);
+            // page.removeListener('response', sseListener);
+            // const errorMsg = `Matched SSE response from ${resUrl} (HTTP ${status}) completed BUT DID NOT contain "${doneSignalText}".`;
+            // if (log) console.warn(`${logPrefix} ${errorMsg}`);
+            // reject(new Error(errorMsg));
+          }
+        } catch (e) { // Catch errors from response.status(), response.text(), etc.
+          if (!listenerActive) return;
+          // Don't necessarily stop listening on any processing error for ONE response,
+          // unless it's critical or the listener itself is compromised.
+          // For example, if response.text() fails because the connection was prematurely closed,
+          // that specific response cannot be checked.
+          if (log) console.warn(`${logPrefix} Error processing a matched SSE response from ${resUrl}: ${e.message}. Listener remains active.`);
+          // If this error is fatal for the whole operation:
+          // listenerActive = false;
+          // clearTimeout(timeoutId);
+          // page.removeListener('response', sseListener);
+          // reject(new Error(`Critical error processing response from ${resUrl}: ${e.message}`));
+        }
+      }
+    };
+
+    timeoutId = setTimeout(() => {
+      if (!listenerActive) return;
+      listenerActive = false;
+      page.removeListener('response', sseListener);
+      const patternStr = typeof urlPattern === 'string' ? urlPattern : urlPattern.toString();
+      const errorMsg = `Timeout (${timeoutMs / 1000}s) waiting for SSE containing "${doneSignalText}" from URL matching "${patternStr}".`;
+      if (log) console.warn(`${logPrefix} ${errorMsg}`);
+      reject(new Error(errorMsg)); // Timeout is a definitive failure
+    }, timeoutMs);
+
+    page.on('response', sseListener);
+    if (log) console.log(`${logPrefix} Listener attached for URL pattern "${typeof urlPattern === 'string' ? urlPattern : urlPattern.toString()}" and signal "${doneSignalText}". Awaiting full response text check.`);
+  });
+}
+
+/**
  * Scrolls a specific element to its bottom with a basic check.
  * Warns if the element is not found or if it doesn't appear to be at the bottom after scrolling.
  * @param {import('playwright').Page} page - The Playwright page object.
@@ -220,5 +331,6 @@ async function scrollToElementBottom(page, containerSelector, delayAfterScrollMs
   module.exports = {
     ensureButtonIsActive,
     waitForSSECompletion,
-    scrollToElementBottom
+    scrollToElementBottom,
+    waitForSSECompletion_SimpleText
   };
