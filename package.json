@@ -2,17 +2,21 @@
   "name": "question-capture-workflow",
   "version": "1.0.0",
   "description": "从试卷中提取题目并截图 LLM 回答的自动化脚本",
-  "main": "index.js",
+    "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "getCookies":"node src/get_cookies.js",
-    "screenshot": "node src/index.js",
-    "parallel": "node src/parallel_index.js",
-    "retry": "node src/index_with_retry.js"
+    "getCookies": "node src/get_cookies.js",
+    "deepseek": "cross-env LLM_TYPE=deepseek node src/index.js",
+    "doubao": "cross-env LLM_TYPE=doubao node src/index.js",
+    "qianwen": "cross-env LLM_TYPE=qianwen node src/index.js",
+    "test": "node src/test.js"
   },
   "dependencies": {
     "playwright": "^1.52.0"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
 }

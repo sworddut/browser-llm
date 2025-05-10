@@ -1,0 +1,457 @@
+{
+  "cookies": [
+    {
+      "name": "gd_random",
+      "value": "eyJtYXRjaCI6ZmFsc2UsInBlcmNlbnQiOjAuNjI5OTUwNjI4Mjk5MzgwOH0=.5jCv4gldLtA3LXrZ/YgLIxy/twieq0JksimXUClhQ5A=",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": 1747476623.183998,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "i18next",
+      "value": "zh",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.1792198322.1746871800",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1781431824.919245,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ar_debug",
+      "value": "1",
+      "domain": ".www.google-analytics.com",
+      "path": "/",
+      "expires": 1754647824.991734,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "ttcid",
+      "value": "2c43a20342dd4c33920bd0fca345a5fb34",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": 1747476607,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ttcid",
+      "value": "2c43a20342dd4c33920bd0fca345a5fb34",
+      "domain": "mssdk.bytedance.com",
+      "path": "/",
+      "expires": 1747476633.713679,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "s_v_web_id",
+      "value": "verify_mai2dev3_5Khr9H7Y_gPNu_4sCk_BRVg_uJZr9H068R5a",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": 1752055809,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "passport_csrf_token",
+      "value": "9c7cdfb626ea18c87342e861bc1d35c8",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055809.983001,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "passport_csrf_token_default",
+      "value": "9c7cdfb626ea18c87342e861bc1d35c8",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055809.98305,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "passport_mfa_token",
+      "value": "CjgpyA21j2yAihClA42UoEjT386x9MmJlcmqPAZ3lOfJiqWa4tFZoMbVqGyLIUWgCWzBdLpd6IaazxpKCjwAAAAAAAAAAAAATvqCtxO4yOYodJLT9zqaPrtwzFbomWixoCac1DYLph603x0ku%2FLL26M%2FkG2y67SvZqMQioDxDRj2sdFsIAIiAQNvzUET",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.035947,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "d_ticket",
+      "value": "0ffe5d9a01a3f143f0012c85058a45fad587a",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1778407823.035995,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "odin_tt",
+      "value": "e736248dcbf65d92ca0ffea700b01b5a55bc19590e5286f6ce832fca8c202fb323162c6582508b086ef429dd8c3015d29961a96fc1e661fdbb64f751c4032e6b",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1778407823.036009,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "n_mh",
+      "value": "bu2MPryweSk5JZCAZUMwKKyBOuxQs7oiCVZmQSUt-g8",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1757239823.03602,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "passport_auth_status",
+      "value": "c01deeefe9c478902ff067c165c95774%2C",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1749463823.03603,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "passport_auth_status_ss",
+      "value": "c01deeefe9c478902ff067c165c95774%2C",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1749463823.03604,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sid_guard",
+      "value": "a5769833e27234b1fd5f5f69e0605905%7C1746871821%7C5184000%7CWed%2C+09-Jul-2025+10%3A10%3A21+GMT",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1777975823.036058,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uid_tt",
+      "value": "0c77517aa0aba969f25cf7c9eb9f24fb",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036074,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uid_tt_ss",
+      "value": "0c77517aa0aba969f25cf7c9eb9f24fb",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036087,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "sid_tt",
+      "value": "a5769833e27234b1fd5f5f69e0605905",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036097,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sessionid",
+      "value": "a5769833e27234b1fd5f5f69e0605905",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036106,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sessionid_ss",
+      "value": "a5769833e27234b1fd5f5f69e0605905",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036116,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "is_staff_user",
+      "value": "false",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036125,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sid_ucp_v1",
+      "value": "1.0.0-KGRjMmQ4NzM2ZDQ0OWI4N2E1ZmJiYTE1NDE2YThhZTQ2YzM2NzAyNDMKIAjroaCZhsyDAhCNzPzABhjCsR4gDDCB5pi4BjgCQPEHGgJsZiIgYTU3Njk4MzNlMjcyMzRiMWZkNWY1ZjY5ZTA2MDU5MDU",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036135,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ssid_ucp_v1",
+      "value": "1.0.0-KGRjMmQ4NzM2ZDQ0OWI4N2E1ZmJiYTE1NDE2YThhZTQ2YzM2NzAyNDMKIAjroaCZhsyDAhCNzPzABhjCsR4gDDCB5pi4BjgCQPEHGgJsZiIgYTU3Njk4MzNlMjcyMzRiMWZkNWY1ZjY5ZTA2MDU5MDU",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1752055823.036145,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "flow_ssr_sidebar_expand",
+      "value": "1",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ttwid",
+      "value": "1%7CfT7nANSCFChVG6XEmWJDZiBFqbxbpM4Mvx4yhpj355I%7C1746871822%7C37440c013debc7cb44077888126342a004c8c3cff02362ac1b0e4088b8632eb8",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1778407823.398842,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga_G8EP5CG8VZ",
+      "value": "GS2.1.s1746871799$o1$g1$t1746871824$j0$l0$h0",
+      "domain": ".doubao.com",
+      "path": "/",
+      "expires": 1781431824.941734,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "passport_fe_beating_status",
+      "value": "true",
+      "domain": ".www.doubao.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "msToken",
+      "value": "jUzSLO0qr7IbH8TgnwLizBku-ZREJZc5_2xPR5L0E7ox68UkdtXI0WhtwEhxW2Ja8TD5nARjNOlF8mYjqUCMWteherM5tRR_CYvsjD1QNxUswu9KFenH7xkQNvAXZw1YZw0NsU4ozrJZrL8=",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": 1747476626,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "tt_scid",
+      "value": "cSvcytgf5LWfYrGBOee6uOqUy3ZETKCI-vwUydODqHOtcExOMv9dHCQRYvX-5WA10a8b",
+      "domain": "mssdk.bytedance.com",
+      "path": "/",
+      "expires": 1747476633.713746,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "tt_scid",
+      "value": "cSvcytgf5LWfYrGBOee6uOqUy3ZETKCI-vwUydODqHOtcExOMv9dHCQRYvX-5WA10a8b",
+      "domain": "www.doubao.com",
+      "path": "/",
+      "expires": 1747476633,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://www.doubao.com",
+      "localStorage": [
+        {
+          "name": "__tea_cache_first_2018",
+          "value": "1"
+        },
+        {
+          "name": "loginTrackMeta",
+          "value": "{\"login_entrance\":\"sign_in\",\"is_from_ug\":\"0\",\"is_from_share\":\"0\"}"
+        },
+        {
+          "name": "__msuuid__",
+          "value": "7db554b0-ddc8-4ac9-aed0-d0faa99b8da2"
+        },
+        {
+          "name": "__tea_sdk_ab_version_497858",
+          "value": "{\"data\":{\"ai_space_media_askdoubao_enable\":{\"val\":true,\"vid\":\"91007794\"},\"ai_space_use_new_download\":{\"val\":true,\"vid\":\"90982815\"},\"always_show_writing_upload_btn\":{\"val\":true,\"vid\":\"90938185\"},\"artifact_share_resource_types\":{\"val\":[2,4],\"vid\":\"90968384\"},\"auto_exit_skill\":{\"val\":true,\"vid\":\"90125743\"},\"chat_input_new_layout\":{\"val\":true,\"vid\":\"90165874\"},\"chat_list_type\":{\"val\":1,\"vid\":\"90114498\"},\"coding_html_python_preview\":{\"val\":true,\"vid\":\"12615101\"},\"create_bot_auto_fill_web\":{\"val\":true,\"vid\":\"90117286\"},\"enable_academic_search_in_guidance_page\":{\"val\":true,\"vid\":\"90350953\"},\"enable_ai_read_new_guidance\":{\"val\":true,\"vid\":\"90968141\"},\"enable_ai_space\":{\"val\":true,\"vid\":\"90618308\"},\"enable_ai_space_skill\":{\"val\":true,\"vid\":\"90348277\"},\"enable_asr\":{\"val\":true,\"vid\":\"90127854\"},\"enable_mindmap_preset_prompt\":{\"val\":true,\"vid\":\"90126811\"},\"enable_product_page\":{\"val\":true,\"vid\":\"90626468\"},\"enable_read_canvas\":{\"val\":true,\"vid\":\"90350805\"},\"enable_samantha_protocol_skill_id_11\":{\"val\":1,\"vid\":\"90922029\"},\"enable_samantha_protocol_skill_id_5\":{\"val\":1,\"vid\":\"11134708\"},\"enable_samantha_protocol_skill_id_9\":{\"val\":1,\"vid\":\"11773112\"},\"enable_search_sider_bar\":{\"val\":{\"use_sider_bar\":true,\"use_switch\":false},\"vid\":\"90964928\"},\"enable_tts\":{\"val\":true,\"vid\":\"90168264\"},\"image_guidance_page_chat_input_position\":{\"val\":\"center\",\"vid\":\"90962683\"},\"input_upload_aispace_enable\":{\"val\":true,\"vid\":\"90941721\"},\"input_upload_code_enable\":{\"val\":true,\"vid\":\"90941722\"},\"landing_to_new_chat\":{\"val\":false,\"vid\":\"90114864\"},\"libra_calc\":{\"val\":0,\"vid\":\"8229365\"},\"message_action_share_position\":{\"val\":\"end\",\"vid\":\"90616154\"},\"message_tea_ab\":{\"val\":2,\"vid\":\"90956453\"},\"new_ai_search_guidance_page\":{\"val\":true,\"vid\":\"90132584\"},\"new_pdf_viewer\":{\"val\":\"1\",\"vid\":\"90622433\"},\"new_search_ref_show\":{\"val\":true,\"vid\":\"90128559\"},\"new_user_guide_enable_entry\":{\"val\":true,\"vid\":\"90358420\"},\"new_user_guide_enable_lottery_1\":{\"val\":true,\"vid\":\"90358511\"},\"new_writing_skill\":{\"val\":true,\"vid\":\"90123022\"},\"pdf_guidance_mf\":{\"val\":true,\"vid\":\"90331482\"},\"read_download_translation\":{\"val\":true,\"vid\":\"90622494\"},\"read_guidance_use_latest_reading\":{\"val\":true,\"vid\":\"12607484\"},\"share_image_select_modal\":{\"val\":true,\"vid\":\"90975136\"},\"show_create_doc_by_message_action_button\":{\"val\":true,\"vid\":\"90968623\"},\"show_editorTools_in_header\":{\"val\":true,\"vid\":\"91003684\"},\"show_in_update_page\":{\"val\":true,\"vid\":\"91000495\"},\"show_large_onboarding_avatar\":{\"val\":true,\"vid\":\"90114863\"},\"show_pwa_guide\":{\"val\":true,\"vid\":\"90114503\"},\"show_writing_online_btn\":{\"val\":true,\"vid\":\"90609211\"},\"support_auto_continue_write\":{\"val\":\"false\",\"vid\":\"12337907\"},\"upload_optimization\":{\"val\":true,\"vid\":\"90970898\"}},\"uuid\":\"7502757165431473683\",\"timestamp\":1746871825786,\"ab_version_multilink\":[],\"ab_ext_version\":[],\"ab_version\":[\"90618308\",\"90941721\",\"90941722\",\"91000495\"]}"
+        },
+        {
+          "name": "libra_setting_show_upgrade",
+          "value": "\"1\""
+        },
+        {
+          "name": "libra_setting_input_upload_code_enable",
+          "value": "true"
+        },
+        {
+          "name": "xmsi",
+          "value": "2"
+        },
+        {
+          "name": "__tea_cache_first_497858",
+          "value": "1"
+        },
+        {
+          "name": "samantha-web-flow-web-sidebar-store",
+          "value": "{\"state\":{\"isExpand\":true,\"hasExpandInteracted\":false,\"applicationRecommendMap\":{\"15\":1}},\"version\":1}"
+        },
+        {
+          "name": "flow-web-code-block-theme-store",
+          "value": "{\"state\":{\"codeBlockMode\":\"light\"},\"version\":0}"
+        },
+        {
+          "name": "tt_scid",
+          "value": "cSvcytgf5LWfYrGBOee6uOqUy3ZETKCI-vwUydODqHOtcExOMv9dHCQRYvX-5WA10a8b"
+        },
+        {
+          "name": "https://www.doubao.com-operation",
+          "value": "true"
+        },
+        {
+          "name": "libra_setting_enable_ai_space",
+          "value": "true"
+        },
+        {
+          "name": "lib_fg__tea",
+          "value": "{\"ai_space_media_askdoubao_enable\":true,\"ai_space_use_new_download\":true,\"always_show_writing_upload_btn\":true,\"artifact_share_resource_types\":[2,4],\"auto_exit_skill\":true,\"chat_input_new_layout\":true,\"chat_list_type\":1,\"coding_html_python_preview\":true,\"create_bot_auto_fill_web\":true,\"enable_academic_search_in_guidance_page\":true,\"enable_ai_read_new_guidance\":true,\"enable_ai_space\":true,\"enable_ai_space_skill\":true,\"enable_asr\":true,\"enable_mindmap_preset_prompt\":true,\"enable_product_page\":true,\"enable_read_canvas\":true,\"enable_samantha_protocol_skill_id_11\":1,\"enable_samantha_protocol_skill_id_5\":1,\"enable_samantha_protocol_skill_id_9\":1,\"enable_search_sider_bar\":{\"use_sider_bar\":true,\"use_switch\":false},\"enable_tts\":true,\"image_guidance_page_chat_input_position\":\"center\",\"input_upload_aispace_enable\":true,\"input_upload_code_enable\":true,\"landing_to_new_chat\":false,\"libra_calc\":false,\"message_action_share_position\":\"end\",\"message_tea_ab\":2,\"new_ai_search_guidance_page\":true,\"new_pdf_viewer\":\"1\",\"new_search_ref_show\":true,\"new_user_guide_enable_entry\":true,\"new_user_guide_enable_lottery_1\":true,\"new_writing_skill\":true,\"pdf_guidance_mf\":true,\"read_download_translation\":true,\"read_guidance_use_latest_reading\":true,\"share_image_select_modal\":true,\"show_create_doc_by_message_action_button\":true,\"show_editorTools_in_header\":true,\"show_in_update_page\":true,\"show_large_onboarding_avatar\":true,\"show_pwa_guide\":true,\"show_writing_online_btn\":true,\"support_auto_continue_write\":\"false\",\"upload_optimization\":true}"
+        },
+        {
+          "name": "ttcid",
+          "value": "2c43a20342dd4c33920bd0fca345a5fb34"
+        },
+        {
+          "name": "msToken",
+          "value": "jUzSLO0qr7IbH8TgnwLizBku-ZREJZc5_2xPR5L0E7ox68UkdtXI0WhtwEhxW2Ja8TD5nARjNOlF8mYjqUCMWteherM5tRR_CYvsjD1QNxUswu9KFenH7xkQNvAXZw1YZw0NsU4ozrJZrL8="
+        },
+        {
+          "name": "__tea_cache_tokens_2562",
+          "value": "{\"web_id\":\"7502757293005161996\",\"user_unique_id\":\"1141707050062059\",\"timestamp\":1746871826457,\"_type_\":\"default\"}"
+        },
+        {
+          "name": "hasEnterGuest",
+          "value": "0"
+        },
+        {
+          "name": "",
+          "value": ""
+        },
+        {
+          "name": "__tea_cache_tokens_2018",
+          "value": "{\"web_id\":\"7502757224117339687\",\"user_unique_id\":\"verify_mai2dev3_5Khr9H7Y_gPNu_4sCk_BRVg_uJZr9H068R5a\",\"timestamp\":1746871810103,\"_type_\":\"default\"}"
+        },
+        {
+          "name": "xmst",
+          "value": "fD_vANAT_0jQOS133rbSh74dbRqC8EsRUFU9J-5B1O_qExlnP2HUKTxVPPLbE2hAkBGoY2cJ1Qds7jejOs5uBtRi4ukpMSyY0wzXHvRWtAPJhChI-3HHugNKYUV_xmwBJxxj0fTRhiYfEVLfTAj2-qycfGFDRMtvYLhHGiHXog5Hbla0kAb4cLFE"
+        },
+        {
+          "name": "xmstr",
+          "value": "{\"sTm\":1746871800474,\"acc\":392}"
+        },
+        {
+          "name": "__tea_cache_refer_497858",
+          "value": "{\"refer_key\":\"\",\"refer_title\":\"豆包\",\"refer_manual_key\":\"\",\"routeChange\":false}"
+        },
+        {
+          "name": "for_ban_appeal_sec_user_id",
+          "value": "MS4wLjABAAAAmFrUsrCAIIlgKeUKYggWM9YICaYrj3VgRC8oT6dgj74jnrZRn-CdPCg790VleMVY"
+        },
+        {
+          "name": "i18nextLng",
+          "value": "zh"
+        },
+        {
+          "name": "libra_setting_input_upload_aispace_enable",
+          "value": "true"
+        },
+        {
+          "name": "__tea_cache_tokens_497858",
+          "value": "{\"web_id\":\"7502757165431473683\",\"user_unique_id\":\"7502757165431473683\",\"timestamp\":1746871823459,\"_type_\":\"default\"}"
+        },
+        {
+          "name": "libra_setting_new_guest_guidance_type",
+          "value": "\"normal\""
+        },
+        {
+          "name": "libra_setting_new_chat_input",
+          "value": "\"true\""
+        },
+        {
+          "name": "SLARDARflow_web",
+          "value": "JTdCJTIydXNlcklkJTIyOiUyMjg0YzQzY2U2LWMwNjQtNGQ3Zi05ZjYyLWVhOTYyMDRkYjg3OSUyMiwlMjJkZXZpY2VJZCUyMjolMjJjYmMyYTI4YS01NDFhLTRjZDktOWIxOS01OGJlMTdmN2UxZWMlMjIsJTIyZXhwaXJlcyUyMjoxNzU0NjQ3ODIzNTYzJTdE"
+        },
+        {
+          "name": "flow_tea_user_id",
+          "value": "1141707050062059"
+        },
+        {
+          "name": "flow_web_has_login",
+          "value": "true"
+        },
+        {
+          "name": "flow_user_country",
+          "value": "CN"
+        },
+        {
+          "name": "__tea_cache_first_2562",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}
