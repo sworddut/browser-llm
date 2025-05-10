@@ -1,143 +1,209 @@
 {
   "cookies": [
     {
-      "name": "HWWAFSESID",
-      "value": "38e27118c85900f175b",
-      "domain": "chat.deepseek.com",
+      "name": "_qimei_uuid42",
+      "value": "1950a0c1409100a3bd7272167f1b09425ddd2b41ec",
+      "domain": ".tencent.com",
       "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "HWWAFSESTIME",
-      "value": "1746782606201",
-      "domain": "chat.deepseek.com",
-      "path": "/",
-      "expires": -1,
-      "httpOnly": true,
-      "secure": true,
-      "sameSite": "Lax"
-    },
-    {
-      "name": "smidV2",
-      "value": "20250509172330461d5870df8f3e9fc33ad08d3911641e00df49b2307f8db80",
-      "domain": "chat.deepseek.com",
-      "path": "/",
-      "expires": 1781342610.508756,
+      "expires": 1778386809,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
-      "name": ".thumbcache_6b2e5483f9d858d7c661c5e276b6a6ae",
-      "value": "i2uvegr0CzVD/01OeT+3g897roBrZdc6W1xdd8rAL0S/mD4MzGHvi8ouS7nEhNGz+uH3FUHgRDYCBsA7YEiM9g%3D%3D",
-      "domain": "chat.deepseek.com",
+      "name": "hy_source",
+      "value": "web",
+      "domain": ".tencent.com",
       "path": "/",
-      "expires": 1781342611.377738,
+      "expires": 1752034819.735937,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_qimei_fingerprint",
+      "value": "c85597b05a760962d65e018f1e7c0c03",
+      "domain": ".tencent.com",
+      "path": "/",
+      "expires": 1778386810,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
-      "name": "ds_session_id",
-      "value": "0bb56464295744269f63c79dcff32c7f",
-      "domain": "chat.deepseek.com",
+      "name": "_qimei_i_3",
+      "value": "70b92ad09d5c56dbc6c2fa355e8272e1a5e7a1f2145f528ae188295d27c27539676062943989e285a4bc",
+      "domain": ".tencent.com",
       "path": "/",
-      "expires": -1,
+      "expires": 1778386810,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_qimei_h38",
+      "value": "",
+      "domain": ".tencent.com",
+      "path": "/",
+      "expires": 1778386817,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_qimei_i_1",
+      "value": "5fbf7ec8ff13",
+      "domain": ".tencent.com",
+      "path": "/",
+      "expires": 1778386817,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hy_user",
+      "value": "dd97fe3151f04bf3b682932d97f7b88f",
+      "domain": ".tencent.com",
+      "path": "/",
+      "expires": 1752034819.735778,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "hy_token",
+      "value": "uUrEIexEp2aC/fsHj3b1VF7rZmOTQvgMdXnwYI6Oamf1OEzCR1cJfc7Q9Tf+ohKT+hkG/5a5ePRpTyLmGb+YDA==",
+      "domain": ".tencent.com",
+      "path": "/",
+      "expires": 1752034819.73586,
       "httpOnly": true,
       "secure": true,
-      "sameSite": "Strict"
+      "sameSite": "None"
     }
   ],
   "origins": [
     {
-      "origin": "https://chat.deepseek.com",
+      "origin": "https://yuanbao.tencent.com",
       "localStorage": [
         {
-          "name": "__appKit_@deepseek/chat_fg_enableDataFinderDebug",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_last_report_time",
+          "value": "1746850819290"
         },
         {
-          "name": "thinkingEnabled",
-          "value": "{\"value\":false,\"__version\":\"2\"}"
+          "name": "AEGIS_ID",
+          "value": "615c6b4c-184b-4741-bff1-dc5e9e696ff4"
         },
         {
-          "name": "__tea_cache_tokens_20006317",
-          "value": "{\"web_id\":\"7502374178876583433\",\"user_unique_id\":\"2c66de1d-94d9-4613-ba8a-8a08a310e996\",\"timestamp\":1746782617467,\"_type_\":\"default\"}"
+          "name": "anon-last-input-text",
+          "value": ""
         },
         {
-          "name": ".thumbcache_6b2e5483f9d858d7c661c5e276b6a6ae",
-          "value": "i2uvegr0CzVD/01OeT+3g897roBrZdc6W1xdd8rAL0S/mD4MzGHvi8ouS7nEhNGz+uH3FUHgRDYCBsA7YEiM9g=="
+          "name": "hyc-login-last-type",
+          "value": "wechat"
         },
         {
-          "name": "__appKit_@deepseek/chat_fg_enableCustomCharacterFnModule",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
+          "name": "userFunctions",
+          "value": "[]"
         },
         {
-          "name": "__appKit_@deepseek/chat_themePreference",
-          "value": "{\"value\":\"system\",\"__version\":\"0\"}"
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_sending_event_ids",
+          "value": "[]"
         },
         {
-          "name": "__tea_cache_first_20006317",
+          "name": "_qimei_h38",
+          "value": ""
+        },
+        {
+          "name": "aegis_session_id",
+          "value": "{\"id\":\"SDK-7afc7ffe481ccff27ae6\",\"sessionId\":\"ff36ad88fe9913acb486ced4107026fc\"}"
+        },
+        {
+          "name": "IsModelDropDownFirstShow",
+          "value": "\"0\""
+        },
+        {
+          "name": "__BEACON_deviceId",
+          "value": "Mz6knzm5asGmfhD40Hhzx3KrtjpR2knS"
+        },
+        {
+          "name": "PAGE_STAY_START_TIME",
+          "value": "1746850818826"
+        },
+        {
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_beacon_config_request_time",
+          "value": "1746850809858"
+        },
+        {
+          "name": "_qimei_i_3",
+          "value": "70b92ad09d5c56dbc6c2fa355e8272e1a5e7a1f2145f528ae188295d27c27539676062943989e285a4bc"
+        },
+        {
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_is_new_user",
+          "value": "false"
+        },
+        {
+          "name": "_qimei_config_0WEB06F5PZUCN4AJ",
+          "value": "6ea96ad7d71909849f85f4220fd261fce5b7f087500e42c7e1d17b113499286a656337892acab19e8fb5e294dd79560b82ab988ae2b8508771fe7b327e0a660dca1000f3a96d53f07c806770ba4acdbdfa2f7a440421b549dc71a9eda1fe920b356e40daa96552d9d10ad5ed2ae1f6011427f37a47f3a7ea887e2b8588a61d87ea52100f85f26ee04729c712e92f12532241b99389f77ec91bbf139ad2"
+        },
+        {
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_beacon_config",
+          "value": ""
+        },
+        {
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_session_storage_key",
+          "value": "{\"sessionId\":\"0WEB06F5PZUCN4AJ_1746850810865\",\"sessionStart\":1746850810865}"
+        },
+        {
+          "name": "_qimei_last_get_id_time_0WEB06F5PZUCN4AJ",
+          "value": "1746850817"
+        },
+        {
+          "name": "yb_token",
+          "value": "uUrEIexEp2aC/fsHj3b1VF7rZmOTQvgMdXnwYI6Oamf1OEzCR1cJfc7Q9Tf+ohKT+hkG/5a5ePRpTyLmGb+YDA=="
+        },
+        {
+          "name": "_qimei_fingerprint",
+          "value": "c85597b05a760962d65e018f1e7c0c03"
+        },
+        {
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_logid_start",
+          "value": "1746850809859"
+        },
+        {
+          "name": "UserInternetSearchLastManual",
+          "value": "null"
+        },
+        {
+          "name": "modelSelectGuideUserStatus",
+          "value": "{\"dd97fe3151f04bf3b682932d97f7b88f\":{\"count\":0,\"lastShowTime\":1746850819629}}"
+        },
+        {
+          "name": "_qimei_uuid42",
+          "value": "1950a0c1409100a3bd7272167f1b09425ddd2b41ec"
+        },
+        {
+          "name": "homepage-animate-finish",
           "value": "1"
         },
         {
-          "name": "__appKit_@deepseek/chat_banner",
-          "value": "{\"value\":{\"closedBannerId\":null,\"cachedBannerOptions\":{\"id\":\"v3-upgrade-1\",\"items\":[{\"show\":false,\"showCondition\":[],\"showDeployEnv\":[],\"showByAppId\":[\"@deepseek/chat\"],\"content\":{\"zh_CN\":\"\",\"en_US\":\"\"},\"type\":\"warning\",\"closable\":true}]}},\"__version\":\"0\"}"
+          "name": "yb_user_id",
+          "value": "dd97fe3151f04bf3b682932d97f7b88f"
         },
         {
-          "name": "__appKit_@deepseek/chat_debugPanelEnabled",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
+          "name": "__BEACON_0WEB06F5PZUCN4AJ_4.5.30-web_normal_log_id",
+          "value": "38"
         },
         {
-          "name": "__debugVersionUpdateDisabled",
-          "value": "{\"value\":false,\"__version\":\"20241018.1\"}"
+          "name": "_qimei_i_1",
+          "value": "5fbf7ec8ff13"
         },
         {
-          "name": "__appKit_@deepseek/chat_fg_enableHcaptcha",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
+          "name": "visitor_number",
+          "value": "a_d7b08b4f16cea6540a4d561d02519651::-1"
         },
         {
-          "name": "__tea_sdk_ab_version_20006317",
-          "value": "{\"data\":{},\"uuid\":\"7502374178876583433\",\"timestamp\":1746782617353,\"ab_version_multilink\":[],\"ab_ext_version\":[],\"ab_version\":[]}"
-        },
-        {
-          "name": "searchEnabled",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
-        },
-        {
-          "name": "__appKit_@deepseek/chat_debug",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
-        },
-        {
-          "name": "targetBeforeOauthLogin",
-          "value": "{\"value\":\"chat\",\"__version\":\"0\"}"
-        },
-        {
-          "name": "smidV2",
-          "value": "20250509172330461d5870df8f3e9fc33ad08d3911641e00df49b2307f8db80"
-        },
-        {
-          "name": "APMPLUS675113",
-          "value": "JTdCJTIydXNlcklkJTIyOiUyMjA0NjdlOWMyLWUxZDEtNGFiMi04ZDA4LTYwNTZmNjliNjkxZiUyMiwlMjJkZXZpY2VJZCUyMjolMjJjOTdjZTkyZC01NjM3LTQxOTktOWQxMC1mZGRhOGZhYWJmMDQlMjIsJTIyciUyMjowLjQ4NzE2MDc1ODU1OTY2OTIsJTIyZXhwaXJlcyUyMjoxNzU0NTU4NjE3MjQ3JTdE"
-        },
-        {
-          "name": "closeUnsafeEnvWarn",
-          "value": "{\"value\":false,\"__version\":\"0\"}"
-        },
-        {
-          "name": "__appKit_@deepseek/chat_lastSessionValue",
-          "value": "{\"value\":{\"userIsMuted\":false,\"userMuteUntil\":0,\"loginMethod\":\"code\",\"siderCollapsed\":false,\"value\":{\"userIsMuted\":false,\"userMuteUntil\":0,\"loginMethod\":\"code\",\"siderCollapsed\":false}},\"__version\":\"0\"}"
-        },
-        {
-          "name": "__appKit_@deepseek/chat_localePreference",
-          "value": "{\"value\":\"system\",\"__version\":\"0\"}"
-        },
-        {
-          "name": "userToken",
-          "value": "{\"value\":\"MoTjoONs3quhFzHrrsMbOdzOosrjJJel1SqqIZqwIr4hN4/LsXN/7KVMbQeSaSBO\",\"__version\":\"0\"}"
+          "name": "QAPM_DEVICE_ID",
+          "value": "a3de4bed-6bfe-4ef9-b53f-a6e2067fa3cd--1746850809856"
         }
       ]
     }

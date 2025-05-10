@@ -6,15 +6,16 @@ const fs = require('fs');
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto('https://chat.deepseek.com/sign_in');
+  await page.goto('https://yuanbao.tencent.com');
   console.log('\n🟢 请在浏览器中手动登录 DeepSeek Chat...');
 
   // 监听 URL 变化
   page.on('framenavigated', async (frame) => {
     const url = frame.url();
-    if (url === 'https://chat.deepseek.com/') {
+    if (url === 'https://yuanbao.tencent.com/scan') {
       console.log('\n✅ 检测到登录成功，正在保存登录状态...');
-
+      // 等待2秒，确保cookie/session写入完成
+      await new Promise(resolve => setTimeout(resolve, 2000));
       try {
         const state = await context.storageState();
         fs.writeFileSync('deepseek-state.json', JSON.stringify(state, null, 2));

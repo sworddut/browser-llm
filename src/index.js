@@ -14,41 +14,58 @@ const { log } = require('console');
   const page = await context.newPage();
 
   for (const item of input) {
-    const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，思考不用特别久`;
+    const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，给一个最后答案的总结，思考不用太久`;
 
-    await page.goto('https://chat.deepseek.com', { waitUntil: 'domcontentloaded' });
+    await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded' });
 
-    // 先查找并点击“深度思考 (R1)”按钮（如存在）
+    // 检查并关闭广告弹窗（class 以 index_close_ 开头）
     try {
-      // 等待包含“深度思考”文本的 span 出现
-      await page.waitForSelector('span:text("深度思考")', { timeout: 5000 });
-      console.log('找到深度思考按钮span');
-      await page.evaluate(() => {
-        const label = Array.from(document.querySelectorAll('span')).find(e => e.innerText.includes('深度思考'));
-        if (label) {
-          let btn = label.closest('div[role=button]');
-          if (btn) btn.click();
-        }
-      });
-      // 可选：等待按钮点击后页面刷新
-      await page.waitForTimeout(1500);
+      await page.waitForSelector('[class^="index_close_"]', { timeout: 3000 });
+      await page.click('[class^="index_close_"]');
+      console.log('已自动关闭广告弹窗');
     } catch (e) {
-      // 没找到按钮可忽略
-      console.log('未找到“深度思考”按钮:', e?.message || e);
+      console.log('未检测到广告弹窗');
     }
 
-    // 等待 textarea 可用（DeepSeek 有 debounce 延迟）
-    await page.waitForSelector('textarea', { timeout: 15000 });
+    // 先查找并点击“深度思考 (R1)”按钮（如存在）
+    // try {
+    //   // 等待包含“深度思考”文本的 span 出现
+    //   await page.waitForSelector('span:text("深度思考")', { timeout: 5000 });
+    //   console.log('找到深度思考按钮span');
+    //   await page.evaluate(() => {
+    //     const label = Array.from(document.querySelectorAll('span')).find(e => e.innerText.includes('深度思考'));
+    //     if (label) {
+    //       let btn = label.closest('div[role=button]');
+    //       if (btn) btn.click();
+    //     }
+    //   });
+    //   // 可选：等待按钮点击后页面刷新
+    //   await page.waitForTimeout(1500);
+    // } catch (e) {
+    //   // 没找到按钮可忽略
+    //   console.log('未找到“深度思考”按钮:', e?.message || e);
+    // }
 
-    // 填入 prompt
-    await page.fill('textarea', prompt);
+    // 等待元宝输入框可用
+    await page.waitForSelector('.ql-editor[contenteditable="true"]', { timeout: 15000 });
+
+    // 填入 prompt（支持多行，自动分段）
+    await page.evaluate((text) => {
+      const inputDiv = document.querySelector('.ql-editor[contenteditable="true"]');
+      if (inputDiv) {
+        inputDiv.innerHTML = text.split('\n').map(line => `<p>${line}</p>`).join('');
+      }
+    }, prompt);
+
+    // 聚焦并发送（回车）
+    await page.focus('.ql-editor[contenteditable="true"]');
     await page.keyboard.press('Enter');
 
     // 等待回答加载并监听对话结束
     // 1. 监听最后一条消息内容是否稳定
     let lastContent = '';
     let stableCount = 0;
-    let answerSelector = '.ds-markdown.ds-markdown--block'; // 需根据实际页面结构调整
+    let answerSelector = '.hyc-component-reasoner__text'; // 需根据实际页面结构调整
     let answerText = '';
 
     for (let i = 0; i < 5*60; i++) { // 最多等待 5*60*2=10 min
