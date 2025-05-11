@@ -151,14 +151,10 @@ async function processQuestion(item) {
 
         await scrollToElementBottom(page, scrollContainerSelector, 500, { log: true, logPrefix });
         
-        const scrollLocator = page.locator(scrollContainerSelector);
-        const boundingBox = await scrollLocator.boundingBox();
-        if (boundingBox) {
-          await page.screenshot({ path: screenshotPath, clip: boundingBox, timeout: 15000 });
-        } else {
-          console.warn(`${logPrefix}无法获取滚动容器 "${scrollContainerSelector}" 的边界框，将进行全页截图。`);
-          await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 15000 });
-        }
+        // const scrollLocator = page.locator(scrollContainerSelector);
+        // const boundingBox = await scrollLocator.boundingBox();
+        //截完整的图
+        await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 15000 });
         console.log(`${logPrefix}截图已保存至 ${screenshotPath}`);
 
         // Attempt successful, close context and break retry loop
