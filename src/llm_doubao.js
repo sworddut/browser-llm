@@ -1,8 +1,11 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const utils = require('./utils/index.js'); // 确保 utils.js 包含 waitForSSECompletion 和 ensureButtonIsActive
+const utils = require('./utils/index.js');
 
+// 获取账号名称，默认为default
+const accountName = process.env.ACCOUNT_NAME || 'default';
+console.log(`[INFO] 使用账号: ${accountName}`);
 
 // --- 定义特定于豆包 API 的完成检查器 ---
 const doubaoCompletionChecker = (eventDataWrapper, eventData) => {
@@ -61,10 +64,21 @@ async function processQuestion(item) {
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
       browser = await chromium.launch({ headless: false }); //或者根据需要设置 headless true
-      context = await browser.newContext({
-        storageState: 'doubao-state.json',
-        // userAgent: 'Mozilla/5.0 ...' // 可以考虑固定 User-Agent
-      });
+      
+      // 构建cookie文件路径
+      const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
+      
+      // 检查cookie文件是否存在
+      if (!fs.existsSync(cookiePath)) {
+        console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
+        context = await browser.newContext(); // 无Cookie继续尝试
+      } else {
+        console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
+        context = await browser.newContext({
+          storageState: cookiePath
+          // userAgent: 'Mozilla/5.0 ...' // 可以考虑固定 User-Agent
+        });
+      }
       page = await context.newPage();
 
       await page.goto('https://www.doubao.com/chat/', { waitUntil: 'domcontentloaded', timeout: 60000 });

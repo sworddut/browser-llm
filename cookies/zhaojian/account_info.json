@@ -1,0 +1,20 @@
+{
+  "lastUpdated": "2025-05-11T12:16:45.761Z",
+  "platforms": {
+    "deepseek-state": {
+      "url": "https://yuanbao.tencent.com",
+      "lastLogin": "2025-05-11T12:16:45.762Z",
+      "stateFile": "deepseek-state.json"
+    },
+    "doubao-state": {
+      "url": "https://www.doubao.com/chat/",
+      "lastLogin": "2025-05-11T12:20:48.099Z",
+      "stateFile": "doubao-state.json"
+    },
+    "qianwen-state": {
+      "url": "https://www.tongyi.com/qianwen/",
+      "lastLogin": "2025-05-11T12:24:01.247Z",
+      "stateFile": "qianwen-state.json"
+    }
+  }
+}

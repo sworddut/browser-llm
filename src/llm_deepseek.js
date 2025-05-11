@@ -2,6 +2,10 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
+// 获取账号名称，默认为default
+const accountName = process.env.ACCOUNT_NAME || 'default';
+console.log(`[INFO] 使用账号: ${accountName}`);
+
 // 从 utils/index.js 导入函数
 const { waitForSSECompletion_SimpleText, scrollToElementBottom,injectTimeDisplay } = require('./utils/index');
 
@@ -49,9 +53,20 @@ async function processQuestion(item) {
       let page;    
 
       try {
-        context = await browser.newContext({
-          storageState: 'deepseek-state.json' 
-        });
+        // 构建cookie文件路径
+        const cookiePath = path.join('cookies', accountName, 'deepseek-state.json');
+        
+        // 检查cookie文件是否存在
+        if (!fs.existsSync(cookiePath)) {
+          console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
+          console.error(`[ERROR] 无法找到有效的Cookie文件`);
+          context = await browser.newContext(); // 无Cookie继续尝试
+        } else {
+          console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
+          context = await browser.newContext({
+            storageState: cookiePath
+          });
+        }
         page = await context.newPage();
         await page.setViewportSize({ width: 1280, height: 900 }); // Set a consistent viewport
 
