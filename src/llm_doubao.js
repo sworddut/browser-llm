@@ -34,7 +34,7 @@ const doubaoCompletionChecker = (eventDataWrapper, eventData) => {
 
 // 豆包 LLM 自动化主流程
 async function processQuestion(item) {
-  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions.join('\n')}，给一个最后答案的总结，思考不用太久。`;
+  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
   const answerSelector = '[data-testid="message_text_content"]'; // 豆包的回答容器选择器
   const doubaoDir = path.join(__dirname, 'outputs','doubao'); 
   if (!fs.existsSync(doubaoDir)) {
@@ -70,7 +70,7 @@ async function processQuestion(item) {
       await page.goto('https://www.doubao.com/chat/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
       // *** INJECT TIME DISPLAY HERE ***
-      await injectTimeDisplay(page); // Call it after page load
+      await utils.injectTimeDisplay(page); // Call it after page load
 
       await page.waitForSelector('textarea[data-testid="chat_input_input"]', { timeout: 20000 });
 
