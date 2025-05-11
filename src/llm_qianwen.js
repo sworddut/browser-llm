@@ -77,66 +77,22 @@ async function processQuestion(item) {
 
       // 等待一段时间确保内容加载完成
       await page.waitForTimeout(2000);
+      const answerSelector = '[class^="contentBox--"]>.tongyi-markdown';
 
       // 提取回答内容 - 专门使用.tongyi-markdown选择器
-      allMessages = await page.evaluate(() => {
-        // 获取用户输入
-        const userMessages = [];
-        const userElements = document.querySelectorAll('[class*="userContent"]');
-        if (userElements.length > 0) {
-          for (const el of userElements) {
-            userMessages.push({
-              role: 'user',
-              content: el.innerText.trim()
-            });
-          }
-        }
+      allMessages = await page.evaluate((selector) => {
+        return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
+      }, answerSelector);
 
-        // 获取千问回答 - 专门使用.tongyi-markdown选择器
-        const botMessages = [];
-        const markdownElements = document.querySelectorAll('.tongyi-markdown');
-        
-        if (markdownElements.length > 0) {
-          for (const el of markdownElements) {
-            botMessages.push({
-              role: 'assistant',
-              content: el.innerText.trim(),
-              html: el.innerHTML
-            });
-          }
-        } else {
-          // 备用方案：使用其他选择器
-          const aiElements = document.querySelectorAll('[class*="aiContent"]');
-          if (aiElements.length > 0) {
-            for (const el of aiElements) {
-              botMessages.push({
-                role: 'assistant',
-                content: el.innerText.trim()
-              });
-            }
-          }
-        }
-
-        return { 
-          messages: [...userMessages, ...botMessages],
-          hasMarkdown: markdownElements.length > 0,
-          markdownCount: markdownElements.length
-        };
-      });
-
-      console.log(`[INFO] 题号 ${item.question_number}: 找到 ${allMessages.markdownCount} 个markdown元素`);
+      console.log(`[INFO] 题号 ${item.question_number}: 找到 ${allMessages.length} 个markdown元素`);
       
-      // 检查是否已经有足够的回答内容
-      const messages = allMessages.messages || [];
-      const hasContent = messages.length > 0 && messages.some(m => m.role === 'assistant');
-      const hasMarkdown = allMessages.hasMarkdown;
       
       // 如果已经有markdown内容，直接保存结果，不发送"继续"
-      if (hasContent && hasMarkdown) {
+      if (allMessages.length > 0) {
         console.log(`[INFO] 题号 ${item.question_number}: 已获取到完整回答，无需发送"继续"`);
       } 
       // 只有在没有足够内容时才发送"继续"
-      else if (hasContent && !hasMarkdown && continueCount < maxContinue) {
+      else {
         continueCount++;
         console.log(`[INFO] 题号 ${item.question_number}: 尝试发送 "继续" (${continueCount}/${maxContinue})...`);
         
@@ -159,57 +115,22 @@ async function processQuestion(item) {
           await page.waitForTimeout(2000);
           
           // 重新获取内容
-          allMessages = await page.evaluate(() => {
-            // 获取用户输入
-            const userMessages = [];
-            const userElements = document.querySelectorAll('[class*="userContent"]');
-            if (userElements.length > 0) {
-              for (const el of userElements) {
-                userMessages.push({
-                  role: 'user',
-                  content: el.innerText.trim()
-                });
-              }
-            }
 
-            // 获取千问回答 - 专门使用.tongyi-markdown选择器
-            const botMessages = [];
-            const markdownElements = document.querySelectorAll('.tongyi-markdown');
-            
-            if (markdownElements.length > 0) {
-              for (const el of markdownElements) {
-                botMessages.push({
-                  role: 'assistant',
-                  content: el.innerText.trim(),
-                  html: el.innerHTML
-                });
-              }
-            } else {
-              // 备用方案：使用其他选择器
-              const aiElements = document.querySelectorAll('[class*="aiContent"]');
-              if (aiElements.length > 0) {
-                for (const el of aiElements) {
-                  botMessages.push({
-                    role: 'assistant',
-                    content: el.innerText.trim()
-                  });
-                }
-              }
-            }
+          allMessages = await page.evaluate((selector) => {
+            return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
+          }, answerSelector);
 
-            return [...userMessages, ...botMessages];
-          });
         } catch (e) {
           console.warn(`[WARN] 题号 ${item.question_number}: "继续" SSE监控超时或错误: ${e.message}`);
         }
       }
 
-      if (messages.length === 0) {
+      if (allMessages.length === 0) {
         console.warn(`[WARN] 题号 ${item.question_number}: 未获取到任何回答内容。`);
       }
 
       // 保存结果
-      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages, question_info: item }, null, 2), 'utf-8');
+      fs.writeFileSync(resultPath, JSON.stringify({ prompt, allMessages, question_info: item }, null, 2), 'utf-8');
 
       // 滚动到底部并截图
       const chatContainerSelector = '[class^="scrollWrapper--"]';

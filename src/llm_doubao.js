@@ -35,7 +35,7 @@ const doubaoCompletionChecker = (eventDataWrapper, eventData) => {
 // 豆包 LLM 自动化主流程
 async function processQuestion(item) {
   const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
-  const answerSelector = '[data-testid="message_text_content"]'; // 豆包的回答容器选择器
+  const answerSelector = '[data-testid="message_text_content"][theme-mode]'; // 豆包的回答容器选择器
   const doubaoDir = path.join(__dirname, 'outputs','doubao'); 
   if (!fs.existsSync(doubaoDir)) {
     fs.mkdirSync(doubaoDir, { recursive: true });
@@ -138,7 +138,7 @@ async function processQuestion(item) {
          // throw new Error(`No messages retrieved for question ${item.question_number}`); // 可以选择抛出错误以重试
       }
 
-      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages, question_info: item }, null, 2), 'utf-8');
+      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages }, null, 2), 'utf-8');
 
       const chatContainerSelector = '[data-testid="message-list"]';
       //scroll到底部
