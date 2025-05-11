@@ -28,7 +28,7 @@ async function processQuestion(item, accountName, output) {
   }
   console.log(`[INFO] 输出目录: ${yuanbaoDir}`);
   const resultPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.json`);
-  const screenshotPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.png`);
+  const screenshotPath = path.join(yuanbaoDir, `deepseek_screenshot_${questionNumber}.png`);
 
   if (fs.existsSync(resultPath)) {
     console.log(`${logPrefix}已有结果，跳过...`);

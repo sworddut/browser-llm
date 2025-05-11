@@ -146,7 +146,7 @@ async function processQuestion(item, accountName, output) {
       }
 
       // 保存结果
-      fs.writeFileSync(resultPath, JSON.stringify({ prompt, allMessages}, null, 2), 'utf-8');
+      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
 
       // 滚动到底部并截图
       const chatContainerSelector = '[class^="scrollWrapper--"]';
