@@ -7,7 +7,7 @@ const llmHandlers = {
   qianwen: require('./llm_qianwen'),
 };
 
-const llmType = process.env.LLM_TYPE || 'deepseek'; // 通过环境变量切换llm，默认deepseek
+const llmType = process.env.LLM_TYPE || 'qianwen'; // 通过环境变量切换llm，默认deepseek
 const handler = llmHandlers[llmType];
 
 (async () => {
