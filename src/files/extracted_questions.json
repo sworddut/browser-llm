@@ -1,5 +1,12 @@
 [
   {
+      "question_number": "433bfc253f_31.1",
+      "condition": "我国古代“湿法冶铜”就是利用了C中的反应原理",
+      "specific_questions": "请写出该反应的化学方程式",
+      "solution": "一次循环 $A B C D A$ 对外作功 $W$ 为圆的面积，为 $$W=\\pi p_{0} V_{0}=314 \\mathrm{~J}$$。",
+      "final_answer": "314"
+  },
+  {
       "question_number": "433bfc253f_21.1",
       "condition": "1 mol 单原子分子理想气体所经准静态循环过程是圆，循环过程为 $p-V$ 图上的圆，过程方程为 $$\\left(\\frac{p}{p_{0}}-2\\right)^{2}+\\left(\\frac{V}{V_{0}}-2\\right)^{2}=1$$ 其中 $p_{0}=10^{5} \\mathrm{~N} / \\mathrm{m}^{2}, V_{0}=10^{-3} \\mathrm{~m}^{3}$。",
       "specific_questions": "试求一次循环对外所作的功 $W$。",
