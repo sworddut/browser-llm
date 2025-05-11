@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // 从 utils/index.js 导入函数
-const { waitForSSECompletion_SimpleText, scrollToElementBottom } = require('./utils/index');
+const { waitForSSECompletion_SimpleText, scrollToElementBottom,injectTimeDisplay } = require('./utils/index');
 
 // DeepSeek/元宝自动化主流程
 async function processQuestion(item) {
@@ -19,7 +19,7 @@ async function processQuestion(item) {
 
   const sseUrlPattern = 'https://yuanbao.tencent.com/api/chat/';
   const sseDoneSignal = '[DONE]';
-  const sseTimeoutMs = 5 * 60 * 1000;
+  const sseTimeoutMs = 15 * 60 * 1000; //设置单次最大输出时间
 
   const yuanbaoDir = path.join(__dirname, 'outputs', 'deepseek');
   if (!fs.existsSync(yuanbaoDir)) {
@@ -57,6 +57,9 @@ async function processQuestion(item) {
         await page.setViewportSize({ width: 1280, height: 900 }); // Set a consistent viewport
 
         await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+        // *** INJECT TIME DISPLAY HERE ***
+        await injectTimeDisplay(page); // Call it after page load
 
         try {
           const adCloseButton = page.locator('[class^="index_close_"]');
@@ -157,9 +160,9 @@ async function processQuestion(item) {
         await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 15000 });
         console.log(`${logPrefix}截图已保存至 ${screenshotPath}`);
 
-        // Attempt successful, close context and break retry loop
-        await context.close();
-        console.log(`${logPrefix}尝试 #${retryCount + 1}成功。`);
+        // Attempt successful, 不关闭 context，不关闭 browser，直接 goto 主页等待下一个问题
+        console.log(`${logPrefix}尝试 #${retryCount + 1}成功，准备重新载入主页。`);
+        await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
         break; // Exit the while loop for retries
 
       } catch (err) { // Catch for single attempt
@@ -178,14 +181,7 @@ async function processQuestion(item) {
         }
         
         retryCount++;
-        if (context && browser.contexts().includes(context)) { // Check if context exists and belongs to browser
-            try {
-                await context.close();
-            } catch (closeError) {
-                console.warn(`${logPrefix}关闭失败的 context 时出错: ${closeError.message}`);
-            }
-        }
-
+        // 不关闭 context，保留 browser 和 context 以便下次复用
         if (retryCount > maxRetry) {
           console.error(`${logPrefix}达到最大重试次数 (${maxRetry + 1}) 后仍失败.`);
           fs.writeFileSync(resultPath, JSON.stringify({

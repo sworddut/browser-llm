@@ -69,6 +69,9 @@ async function processQuestion(item) {
 
       await page.goto('https://www.doubao.com/chat/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
+      // *** INJECT TIME DISPLAY HERE ***
+      await injectTimeDisplay(page); // Call it after page load
+
       await page.waitForSelector('textarea[data-testid="chat_input_input"]', { timeout: 20000 });
 
       // 确保开启“深度思考”
