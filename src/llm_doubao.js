@@ -81,6 +81,7 @@ async function processQuestion(item,accountName,output) {
         });
       }
       page = await context.newPage();
+      await page.setViewportSize({ width: 1920, height: 1080 }); // Set a consistent viewport
 
       await page.goto('https://www.doubao.com/chat/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
