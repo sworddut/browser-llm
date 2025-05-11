@@ -3,10 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const utils = require('./utils/index.js');
 
-// 获取账号名称，默认为default
-const accountName = process.env.ACCOUNT_NAME || 'default';
-console.log(`[INFO] 使用账号: ${accountName}`);
-
 // --- 定义特定于豆包 API 的完成检查器 ---
 const doubaoCompletionChecker = (eventDataWrapper, eventData) => {
   if (!eventDataWrapper) {
@@ -36,14 +32,19 @@ const doubaoCompletionChecker = (eventDataWrapper, eventData) => {
 };
 
 // 豆包 LLM 自动化主流程
-async function processQuestion(item) {
+async function processQuestion(item,accountName,output) {
   const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
   const answerSelector = '[data-testid="message_text_content"][theme-mode]'; // 豆包的回答容器选择器
-  const doubaoDir = path.join(__dirname, 'outputs','doubao'); 
+  
+  // 使用自定义输出路径或默认路径
+  const outputBasePath = output || path.join(__dirname, 'outputs');
+  const doubaoDir = path.join(outputBasePath, 'doubao');
   if (!fs.existsSync(doubaoDir)) {
     fs.mkdirSync(doubaoDir, { recursive: true });
   }
+  console.log(`[INFO] 输出目录: ${doubaoDir}`);
   const resultPath = path.join(doubaoDir, `doubao_output_${item.question_number}.json`);
+  const screenshotPath = path.join(doubaoDir, `doubao_output_${item.question_number}.png`);
 
   if (fs.existsSync(resultPath)) {
     console.log(`[INFO] 题号 ${item.question_number} 已有结果，跳过...`);

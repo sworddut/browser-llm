@@ -3,18 +3,18 @@ const fs = require('fs');
 const path = require('path');
 const utils = require('./utils/index.js');
 
-// 获取账号名称，默认为default
-const accountName = process.env.ACCOUNT_NAME || 'default';
-console.log(`[INFO] 使用账号: ${accountName}`);
-
 // 千问 LLM 自动化主流程
-async function processQuestion(item) {
+async function processQuestion(item, accountName, output) {
   const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
-  const qianwenDir = path.join(__dirname, 'outputs', 'qianwen'); 
+  // 使用自定义输出路径或默认路径
+  const outputBasePath = output || path.join(__dirname, 'outputs');
+  const qianwenDir = path.join(outputBasePath, 'qianwen');
   if (!fs.existsSync(qianwenDir)) {
     fs.mkdirSync(qianwenDir, { recursive: true });
   }
+  console.log(`[INFO] 输出目录: ${qianwenDir}`);
   const resultPath = path.join(qianwenDir, `qianwen_output_${item.question_number}.json`);
+  const screenshotPath = path.join(qianwenDir, `qianwen_output_${item.question_number}.png`);
 
   if (fs.existsSync(resultPath)) {
     console.log(`[INFO] 题号 ${item.question_number} 已有结果，跳过...`);

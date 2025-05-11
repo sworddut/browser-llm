@@ -2,15 +2,11 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-// 获取账号名称，默认为default
-const accountName = process.env.ACCOUNT_NAME || 'default';
-console.log(`[INFO] 使用账号: ${accountName}`);
-
 // 从 utils/index.js 导入函数
 const { waitForSSECompletion_SimpleText, scrollToElementBottom,injectTimeDisplay } = require('./utils/index');
 
 // DeepSeek/元宝自动化主流程
-async function processQuestion(item) {
+async function processQuestion(item, accountName, output) {
   const originalPromptForSaving = item.prompt || item.specific_questions;
   const questionNumber = item.question_number;
   const logPrefix = `[deepseek Q${questionNumber}] `;
@@ -24,10 +20,13 @@ async function processQuestion(item) {
   const sseDoneSignal = '[DONE]';
   const sseTimeoutMs = 15 * 60 * 1000; //设置单次最大输出时间
 
-  const yuanbaoDir = path.join(__dirname, 'outputs', 'deepseek');
+  // 使用自定义输出路径或默认路径
+  const outputBasePath = output || path.join(__dirname, 'outputs');
+  const yuanbaoDir = path.join(outputBasePath, 'deepseek');
   if (!fs.existsSync(yuanbaoDir)) {
     fs.mkdirSync(yuanbaoDir, { recursive: true });
   }
+  console.log(`[INFO] 输出目录: ${yuanbaoDir}`);
   const resultPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.json`);
   const screenshotPath = path.join(yuanbaoDir, `deepseek_output_${questionNumber}.png`);
 
