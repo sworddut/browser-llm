@@ -67,7 +67,7 @@ async function processQuestion(item, accountName, output) {
           });
         }
         page = await context.newPage();
-        await page.setViewportSize({ width: 1920, height: 1080 }); // Set a consistent viewport
+        await page.setViewportSize({ width: 1280, height: 860 }); // Set a consistent viewport
 
         await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
@@ -114,6 +114,8 @@ async function processQuestion(item, accountName, output) {
 
           await scrollToElementBottom(page, scrollContainerSelector, 700, { log: true, logPrefix });
 
+          await page.waitForTimeout(1000);
+          
           const currentMessagesOnPage = await page.locator(answerSelector).allInnerTexts();
           
           if (currentMessagesOnPage.length > 0) {
