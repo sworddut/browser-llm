@@ -1,0 +1,15 @@
+{
+  "lastUpdated": "2025-05-11T16:02:42.487Z",
+  "platforms": {
+    "doubao-state": {
+      "url": "https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat?id=excs-202505112350-%5BhUS6YGl--02IjHGvPmFeg%5D",
+      "lastLogin": "2025-05-11T16:02:42.488Z",
+      "stateFile": "doubao-state.json"
+    },
+    "qianwen-state": {
+      "url": "https://bailian.console.aliyun.com/?tab=model#/efm/model_experience_center/text",
+      "lastLogin": "2025-05-11T16:04:51.944Z",
+      "stateFile": "qianwen-state.json"
+    }
+  }
+}

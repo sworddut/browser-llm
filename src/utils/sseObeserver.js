@@ -222,8 +222,227 @@ async function waitForSSECompletion_SimpleText(page, urlPattern, doneSignalText,
 
 
 
+/**
+ * 使用 fetch API 监听 SSE 流，更可靠地处理 SSE 事件
+ * 这个函数不使用 EventSource，而是直接使用 fetch API 来处理 SSE 流
+ * 
+ * @param {import('playwright').Page} page - Playwright 页面对象
+ * @param {string} sseUrl - SSE 流的完整 URL
+ * @param {string|RegExp} completionSignal - 完成信号（字符串或正则表达式）
+ * @param {Object} options - 配置选项
+ * @param {number} options.timeoutMs - 全局超时时间（毫秒）
+ * @param {boolean} options.log - 是否输出日志
+ * @param {string} options.logPrefix - 日志前缀
+ * @param {number} options.inactivityTimeoutMs - 无活动超时时间（毫秒）
+ * @returns {Promise<{completed: boolean, messages: Array<string>, error: string|null}>}
+ */
+async function waitForSSECompletion_EventSource(page, sseUrl, completionSignal, options = {}) {
+  const {
+    timeoutMs = 10 * 60 * 1000, // 默认10分钟
+    log = true,
+    logPrefix = '[SSE_EventSource] ',
+    inactivityTimeoutMs = 60000, // 默认60秒无活动超时
+    headers = {}
+  } = options;
+  
+  if (log) console.log(`${logPrefix}开始监听 SSE 流: ${sseUrl}`);
+  
+  // 创建一个函数来检查完成信号
+  const checkCompletionSignal = (text) => {
+    if (completionSignal instanceof RegExp) {
+      return completionSignal.test(text);
+    } else {
+      return text.includes(completionSignal);
+    }
+  };
+  
+  return new Promise((resolve) => {
+    let globalTimeoutId = null;
+    let inactivityTimeoutId = null;
+    let lastActivityTime = Date.now();
+    let completed = false;
+    let messages = [];
+    let error = null;
+    let abortController = new AbortController();
+    
+    // 清理函数
+    const cleanup = () => {
+      clearTimeout(globalTimeoutId);
+      clearTimeout(inactivityTimeoutId);
+      abortController.abort();
+    };
+    
+    // 重置无活动超时
+    const resetInactivityTimeout = () => {
+      clearTimeout(inactivityTimeoutId);
+      inactivityTimeoutId = setTimeout(() => {
+        if (log) console.log(`${logPrefix}无活动超时 (${inactivityTimeoutMs/1000}s) 到达。自上次数据接收后无新数据。`);
+        cleanup();
+        resolve({ completed, messages, error: error || '无活动超时' });
+      }, inactivityTimeoutMs);
+    };
+    
+    // 设置全局超时
+    globalTimeoutId = setTimeout(() => {
+      if (log) console.warn(`${logPrefix}全局超时 (${timeoutMs/1000}s) 到达。`);
+      cleanup();
+      resolve({ completed, messages, error: error || '全局超时' });
+    }, timeoutMs);
+    
+    // 初始化无活动超时
+    resetInactivityTimeout();
+    
+    // 使用 fetch API 监听 SSE 流
+    (async () => {
+      try {
+        // 在 Node.js 环境中执行 fetch，而不是在浏览器上下文中
+        const response = await fetch(sseUrl, {
+          headers: {
+            'Accept': 'text/event-stream',
+            ...headers
+          },
+          signal: abortController.signal
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        if (!response.body) {
+          throw new Error('Response body is null');
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          // 更新最后活动时间
+          lastActivityTime = Date.now();
+          resetInactivityTimeout();
+          
+          // 解码接收到的数据
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          
+          // 将数据保存到调试目录
+          if (log) console.log(`${logPrefix}收到数据: ${chunk.substring(0, 100)}${chunk.length > 100 ? '...' : ''}`);
+          
+          // 处理接收到的数据
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // 保留最后一行（可能不完整）
+          
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const data = line.substring(5).trim();
+              messages.push(data);
+              
+              // 检查完成信号
+              if (checkCompletionSignal(data)) {
+                if (log) console.log(`${logPrefix}检测到完成信号`);
+                completed = true;
+                cleanup();
+                resolve({ completed, messages, error });
+                return;
+              }
+            }
+          }
+          
+          // 检查整个 buffer 是否包含完成信号
+          if (checkCompletionSignal(buffer)) {
+            if (log) console.log(`${logPrefix}在 buffer 中检测到完成信号`);
+            messages.push(buffer);
+            completed = true;
+            cleanup();
+            resolve({ completed, messages, error });
+            return;
+          }
+        }
+        
+        // 正常结束
+        if (log) console.log(`${logPrefix}SSE 流正常结束`);
+        cleanup();
+        resolve({ completed, messages, error });
+        
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          // 这是我们自己的取消操作，不需要处理
+          return;
+        }
+        
+        if (log) console.error(`${logPrefix}Fetch 错误: ${err.message}`);
+        error = `Fetch 错误: ${err.message}`;
+        cleanup();
+        resolve({ completed, messages, error });
+      }
+    })();
+  });
+}
+
+/**
+ * 拦截并获取符合特定模式的 SSE URL
+ * 这个函数会设置一个网络请求拦截器，捕获匹配的 URL
+ * 
+ * @param {import('playwright').Page} page - Playwright 页面对象
+ * @param {string|RegExp} urlPattern - URL 模式（字符串或正则表达式）
+ * @param {Object} options - 配置选项
+ * @param {number} options.timeoutMs - 超时时间（毫秒）
+ * @param {boolean} options.log - 是否输出日志
+ * @param {string} options.logPrefix - 日志前缀
+ * @returns {Promise<string|null>} 返回捕获到的 URL 或 null
+ */
+async function captureSSEUrl(page, urlPattern, options = {}) {
+  const {
+    timeoutMs = 30000, // 默认30秒
+    log = true,
+    logPrefix = '[CaptureSSEUrl] '
+  } = options;
+  
+  return new Promise((resolve) => {
+    let timeoutId = null;
+    let capturedUrl = null;
+    
+    // 设置超时
+    timeoutId = setTimeout(() => {
+      if (log) console.warn(`${logPrefix}超时 (${timeoutMs/1000}s) 等待匹配 URL。`);
+      page.removeListener('request', requestHandler);
+      resolve(null);
+    }, timeoutMs);
+    
+    // 请求处理函数
+    const requestHandler = (request) => {
+      const url = request.url();
+      let match = false;
+      
+      if (typeof urlPattern === 'string' && url.includes(urlPattern)) {
+        match = true;
+      } else if (urlPattern instanceof RegExp && urlPattern.test(url)) {
+        match = true;
+      }
+      
+      if (match) {
+        if (log) console.log(`${logPrefix}捕获到匹配 URL: ${url}`);
+        capturedUrl = url;
+        clearTimeout(timeoutId);
+        page.removeListener('request', requestHandler);
+        resolve(url);
+      }
+    };
+    
+    // 添加请求监听器
+    page.on('request', requestHandler);
+    
+    if (log) console.log(`${logPrefix}开始监听 URL 模式: ${typeof urlPattern === 'string' ? urlPattern : urlPattern.toString()}`);
+  });
+}
+
   // 导出函数，使其可以在其他文件中被 require
   module.exports = {
     waitForSSECompletion,
-    waitForSSECompletion_SimpleText
+    waitForSSECompletion_SimpleText,
+    waitForSSECompletion_EventSource,
+    captureSSEUrl
   };

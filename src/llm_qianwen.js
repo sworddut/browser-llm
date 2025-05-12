@@ -14,7 +14,7 @@ async function processQuestion(item, accountName, output) {
   }
   console.log(`[INFO] 输出目录: ${qianwenDir}`);
   const resultPath = path.join(qianwenDir, `qianwen_output_${item.question_number}.json`);
-  const screenshotPath = path.join(qianwenDir, `qianwen_output_${item.question_number}.png`);
+  const screenshotPath = path.join(qianwenDir, `qianwen_screenshot_${item.question_number}.png`);
 
   if (fs.existsSync(resultPath)) {
     console.log(`[INFO] 题号 ${item.question_number} 已有结果，跳过...`);
@@ -30,6 +30,7 @@ async function processQuestion(item, accountName, output) {
     let allMessages = [];
     let continueCount = 0;
     const maxContinue = 2; // 最多发送两次"继续"
+    const inputSelector = 'textarea.efm_ant-input';
 
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
@@ -49,111 +50,251 @@ async function processQuestion(item, accountName, output) {
           storageState: cookiePath
         });
         page = await context.newPage();
-        await page.setViewportSize({ width: 1920, height: 1080 }); // Set a consistent viewport
+        await page.setViewportSize({ width: 1200, height: 860 }); // Set a consistent viewport
       }
 
-      await page.goto('https://www.tongyi.com/qianwen/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.goto('https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.16af7b08ALF9pt&tab=model#/efm/model_experience_center/text?modelId=qwq-32b', { waitUntil: 'domcontentloaded', timeout: 60000 });
       await utils.injectTimeDisplay(page);
 
       // 等待输入框可用
-      await page.waitForSelector('[class^="chatTextarea--"] textarea', { timeout: 20000 });
+      await page.waitForSelector(inputSelector, { timeout: 20000 });
       
-      // 确保开启"深度思考"
-      try {
-        const deepThinkButtonSelector = '[class^="tagBtn--"]';
-        const buttonExists = await page.isVisible(deepThinkButtonSelector);
+      // 注入脚本来监听 EventSource
+      await page.addInitScript(() => {
+        console.log('注入 EventSource 监听脚本...');
+        window.__sse_messages = [];
+        window.__sse_completed = false;
         
-        if (buttonExists) {
-          const result = await utils.ensureButtonIsActive(page, deepThinkButtonSelector, 'active', true);
-          if (result) {
-            console.log(`[INFO] 题号 ${item.question_number}: 深度思考按钮已成功处理`);
+        // 保存原始的 EventSource
+        if (!window.__originalEventSource) {
+          window.__originalEventSource = window.EventSource;
+        }
+        
+        // 重写 EventSource
+        window.EventSource = function(url, options) {
+          console.log('创建 EventSource:', url);
+          const es = new window.__originalEventSource(url, options);
+          
+          es.addEventListener('open', function(e) {
+            console.log('EventSource 已打开连接:', url);
+          });
+          
+          es.addEventListener('message', function(e) {
+            window.__sse_messages.push({
+              timestamp: new Date().toISOString(),
+              data: e.data
+            });
+            
+            // 检查是否包含完成信号
+            if (e.data.includes('"streamEnd":true') || e.data.includes('"streamEnd": true')) {
+              window.__sse_completed = true;
+              console.log('EventSource 检测到完成信号');
+            }
+          });
+          
+          es.addEventListener('error', function(e) {
+            console.error('EventSource 错误');
+          });
+          
+          return es;
+        };
+      });
+      
+      // 监听网络响应，查找 SSE 响应
+      const responseListener = async response => {
+        const url = response.url();
+        if (url.includes('efm-ws.aliyuncs.com/sse')) {
+          console.log(`[INFO 题号 ${item.question_number}] 捕获到 SSE 响应: ${url}`);
+          try {
+            const responseText = await response.text();
+            
+            // 保存响应内容到文件
+            const debugDir = path.join(process.cwd(), 'debug');
+            if (!fs.existsSync(debugDir)) {
+              fs.mkdirSync(debugDir, { recursive: true });
+            }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = path.join(debugDir, `qianwen_sse_${item.question_number}_${timestamp}.json`);
+            fs.writeFileSync(filename, responseText, 'utf8');
+            console.log(`[INFO 题号 ${item.question_number}] SSE 响应内容已保存到文件: ${filename}`);
+            
+            // 直接从响应中提取回答
+            try {
+              // 尝试解析响应行
+              const lines = responseText.split('\n').filter(line => line.trim());
+              if (lines.length > 0) {
+                // 获取最后一行（完整回答）
+                const lastLine = lines[lines.length - 1];
+                if (lastLine.startsWith('data:')) {
+                  const jsonStr = lastLine.substring(5); // 移除 'data:' 前缀
+                  const data = JSON.parse(jsonStr);
+                  if (data.data && data.data[0] && data.data[0].type === "JSON_TEXT" && data.data[0].value) {
+                    const jsonValue = JSON.parse(data.data[0].value);
+                    if (jsonValue.data && jsonValue.data.responseCard && jsonValue.data.responseCard.sentenceList) {
+                      const content = jsonValue.data.responseCard.sentenceList[0].content;
+                      allMessages = [content]; // 直接设置为最终回答
+                      console.log(`[INFO 题号 ${item.question_number}] 成功提取最终回答`);
+                      
+                      // 移除响应监听器
+                      page.removeListener('response', responseListener);
+                      
+                      // 直接保存结果
+                      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+                      console.log(`[INFO 题号 ${item.question_number}] 结果已保存到: ${resultPath}`);
+                      
+                      // 等待内容显示在页面上
+                      await page.waitForTimeout(2000);
+                      
+                      // 滚动到底部并截图
+                      const chatContainerSelector = '[class^="scrollWrapper--"]';
+                      await utils.scrollToElementBottom(page, chatContainerSelector);
+                      await page.screenshot({ path: screenshotPath, fullPage: true });
+                      console.log(`[INFO 题号 ${item.question_number}] 截图已保存到: ${screenshotPath}`);
+                      
+                      console.log(`✅ 题号 ${item.question_number}: 已成功处理。`);
+                      
+                      if (browser && browser.isConnected()) await browser.close();
+                      return; // 成功，退出函数
+                    }
+                  }
+                }
+              }
+            } catch (parseErr) {
+              console.error(`[ERROR 题号 ${item.question_number}] 解析响应内容时出错:`, parseErr.message);
+            }
+          } catch (err) {
+            console.error(`[INFO 题号 ${item.question_number}] 读取响应内容时出错:`, err.message);
           }
         }
-      } catch (e) {
-        console.warn(`[WARN] 题号 ${item.question_number}: 深度思考按钮操作失败: ${e.message}`);
-      }
-
-      // 输入问题
-      await page.fill('[class^="chatTextarea--"] textarea', prompt);
-      await page.press('[class^="chatTextarea--"] textarea', 'Enter');
+      };
+      page.on('response', responseListener);
+      
+      await page.fill(inputSelector, prompt);
+      await page.focus(inputSelector);
+      await page.waitForTimeout(2000); // 等待聚焦生效
+      await page.keyboard.press('Enter');
       console.log(`[INFO] 题号 ${item.question_number}: 初始问题已发送，等待回复...`);
 
-      // 等待回复完成 - 使用简单版本的SSE监控
+      // 等待一定时间，确保有足够时间捕获响应
       try {
-        await utils.waitForSSECompletion_SimpleText(
-          page,
-          new RegExp('api\\.tongyi\\.com.*conversation'),
-          '[DONE]',
-          5 * 60 * 1000, // 5分钟超时
-          { log: true, logPrefix: `[INFO 题号 ${item.question_number}] ` }
-        );
+        console.log(`[INFO] 题号 ${item.question_number}: 等待响应...`);
+        await page.waitForTimeout(30000); // 等待 30 秒
+        
+        // 移除响应监听器
+        page.removeListener('response', responseListener);
         console.log(`[INFO] 题号 ${item.question_number}: 初始回复处理完成`);
       } catch (e) {
-        console.warn(`[WARN] 题号 ${item.question_number}: SSE监控超时或错误: ${e.message}`);
+        console.warn(`[WARN] 题号 ${item.question_number}: 等待响应时出错: ${e.message}`);
       }
 
-      // 等待一段时间确保内容加载完成
-      await page.waitForTimeout(2000);
-      const answerSelector = '[class^="contentBox--"]>.tongyi-markdown';
-
-      // 提取回答内容 - 专门使用.tongyi-markdown选择器
-      allMessages = await page.evaluate((selector) => {
-        return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
-      }, answerSelector);
-
-      console.log(`[INFO] 题号 ${item.question_number}: 找到 ${allMessages.length} 个markdown元素`);
-      
-      
-      // 如果已经有markdown内容，直接保存结果，不发送"继续"
-      if (allMessages.length > 0) {
-        console.log(`[INFO] 题号 ${item.question_number}: 已获取到完整回答，无需发送"继续"`);
-      } 
-      // 只有在没有足够内容时才发送"继续"
-      else {
+      // 如果没有成功提取到回答，尝试发送"继续"
+      if (allMessages.length === 0 && continueCount < maxContinue) {
         continueCount++;
         console.log(`[INFO] 题号 ${item.question_number}: 尝试发送 "继续" (${continueCount}/${maxContinue})...`);
         
-        await page.waitForSelector('[class^="chatTextarea--"] textarea', { timeout: 15000 });
-        await page.fill('[class^="chatTextarea--"] textarea', '继续');
-        await page.press('[class^="chatTextarea--"] textarea', 'Enter');
-        console.log(`[INFO] 题号 ${item.question_number}: "继续"已发送，等待回复...`);
-
         try {
-          await utils.waitForSSECompletion_SimpleText(
-            page,
-            new RegExp('api\\.tongyi\\.com.*conversation'),
-            '[DONE]',
-            3 * 60 * 1000, // 3分钟超时
-            { log: true, logPrefix: `[INFO 题号 ${item.question_number} 继续${continueCount}] ` }
-          );
+          await page.waitForSelector(inputSelector, { timeout: 15000 });
+          
+          // 监听网络响应，查找 SSE 响应
+          const continueResponseListener = async response => {
+            const url = response.url();
+            if (url.includes('efm-ws.aliyuncs.com/sse')) {
+              console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] 捕获到 SSE 响应: ${url}`);
+              try {
+                const responseText = await response.text();
+                
+                // 保存响应内容到文件
+                const debugDir = path.join(process.cwd(), 'debug');
+                if (!fs.existsSync(debugDir)) {
+                  fs.mkdirSync(debugDir, { recursive: true });
+                }
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = path.join(debugDir, `qianwen_sse_${item.question_number}_continue${continueCount}_${timestamp}.json`);
+                fs.writeFileSync(filename, responseText, 'utf8');
+                console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] SSE 响应内容已保存到文件: ${filename}`);
+                
+                // 直接从响应中提取回答
+                try {
+                  // 尝试解析响应行
+                  const lines = responseText.split('\n').filter(line => line.trim());
+                  if (lines.length > 0) {
+                    // 获取最后一行（完整回答）
+                    const lastLine = lines[lines.length - 1];
+                    if (lastLine.startsWith('data:')) {
+                      const jsonStr = lastLine.substring(5); // 移除 'data:' 前缀
+                      const data = JSON.parse(jsonStr);
+                      if (data.data && data.data[0] && data.data[0].type === "JSON_TEXT" && data.data[0].value) {
+                        const jsonValue = JSON.parse(data.data[0].value);
+                        if (jsonValue.data && jsonValue.data.responseCard && jsonValue.data.responseCard.sentenceList) {
+                          const content = jsonValue.data.responseCard.sentenceList[0].content;
+                          allMessages = [content]; // 直接设置为最终回答
+                          console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] 成功提取最终回答`);
+                          
+                          // 移除响应监听器
+                          page.removeListener('response', continueResponseListener);
+                          
+                          // 直接保存结果
+                          fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+                          console.log(`[INFO 题号 ${item.question_number}] 结果已保存到: ${resultPath}`);
+                          
+                          // 等待内容显示在页面上
+                          await page.waitForTimeout(2000);
+                          
+                          // 滚动到底部并截图
+                          const chatContainerSelector = '[class*="custom-scroll-to-bottom_"] > div[class^="react-scroll-to-bottom"]';
+                          await utils.scrollToElementBottom(page, chatContainerSelector);
+                          await page.screenshot({ path: screenshotPath, fullPage: true });
+                          console.log(`[INFO 题号 ${item.question_number}] 截图已保存到: ${screenshotPath}`);
+                          
+                          console.log(`✅ 题号 ${item.question_number}: 已成功处理。`);
+                          
+                          if (browser && browser.isConnected()) await browser.close();
+                          return; // 成功，退出函数
+                        }
+                      }
+                    }
+                  }
+                } catch (parseErr) {
+                  console.error(`[ERROR 题号 ${item.question_number} 继续${continueCount}] 解析响应内容时出错:`, parseErr.message);
+                }
+              } catch (err) {
+                console.error(`[INFO 题号 ${item.question_number} 继续${continueCount}] 读取响应内容时出错:`, err.message);
+              }
+            }
+          };
+          page.on('response', continueResponseListener);
+          
+          // 发送继续指令
+          await page.fill(inputSelector, '继续');
+          await page.focus(inputSelector);
+          await page.waitForTimeout(2000); // 等待聚焦生效
+          await page.keyboard.press('Enter');
+          console.log(`[INFO] 题号 ${item.question_number}: "继续"已发送，等待回复...`);
+          
+          // 等待一定时间，确保有足够时间捕获响应
+          await page.waitForTimeout(30000); // 等待 30 秒
+          
+          // 移除响应监听器
+          page.removeListener('response', continueResponseListener);
           console.log(`[INFO] 题号 ${item.question_number}: "继续" #${continueCount} 处理完成`);
           
-          // 等待内容更新
-          await page.waitForTimeout(2000);
-          
-          // 重新获取内容
-
-          allMessages = await page.evaluate((selector) => {
-            return Array.from(document.querySelectorAll(selector)).map(node => node.innerText.trim());
-          }, answerSelector);
-
         } catch (e) {
-          console.warn(`[WARN] 题号 ${item.question_number}: "继续" SSE监控超时或错误: ${e.message}`);
+          console.warn(`[WARN] 题号 ${item.question_number}: "继续"处理时出错: ${e.message}`);
         }
       }
-
+      
+      // 如果仍然没有获取到回答，记录警告
       if (allMessages.length === 0) {
         console.warn(`[WARN] 题号 ${item.question_number}: 未获取到任何回答内容。`);
       }
 
-      // 保存结果
+      // 保存结果（即使为空）
       fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
 
       // 滚动到底部并截图
       const chatContainerSelector = '[class^="scrollWrapper--"]';
       await utils.scrollToElementBottom(page, chatContainerSelector);
 
-      const screenshotPath = path.join(qianwenDir, `qianwen_screenshot_${item.question_number}.png`);
       await page.screenshot({ path: screenshotPath, fullPage: true });
 
       console.log(`✅ 题号 ${item.question_number}: 已成功处理。结果: ${resultPath}, 截图: ${screenshotPath}`);

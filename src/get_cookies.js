@@ -24,12 +24,12 @@ const LLM_PLATFORMS = {
   },
   '2': {
     name: '豆包',
-    url: 'https://www.doubao.com/chat/',
+    url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat?id=excs-202505112350-%5BhUS6YGl--02IjHGvPmFeg%5D',
     stateFile: 'doubao-state.json'
   },
   '3': {
     name: '千问/通义',
-    url: 'https://www.tongyi.com/qianwen/',
+    url: 'https://bailian.console.aliyun.com/?tab=model#/efm/model_experience_center/text',
     stateFile: 'qianwen-state.json'
   },
   '4': {
