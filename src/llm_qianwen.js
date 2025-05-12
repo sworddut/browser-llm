@@ -18,13 +18,14 @@ async function processQuestion(item, accountName, output) {
 
   if (fs.existsSync(resultPath)) {
     console.log(`[INFO] 题号 ${item.question_number} 已有结果，跳过...`);
-    return;
+    return; // 已有结果，直接返回
   }
 
   let retryCount = 0;
   const maxRetry = 2; // 总共尝试 maxRetry + 1 次
+  let success = false; // 标记是否成功处理
 
-  while (retryCount <= maxRetry) {
+  while (retryCount <= maxRetry && !success) {
     let browser; // 在循环内部声明
     let page;
     let allMessages = [];
@@ -154,6 +155,7 @@ async function processQuestion(item, accountName, output) {
                       console.log(`✅ 题号 ${item.question_number}: 已成功处理。`);
                       
                       if (browser && browser.isConnected()) await browser.close();
+                      success = true; // 标记成功处理
                       return; // 成功，退出函数
                     }
                   }
@@ -249,6 +251,7 @@ async function processQuestion(item, accountName, output) {
                           console.log(`✅ 题号 ${item.question_number}: 已成功处理。`);
                           
                           if (browser && browser.isConnected()) await browser.close();
+                          success = true; // 标记成功处理
                           return; // 成功，退出函数
                         }
                       }
@@ -300,6 +303,7 @@ async function processQuestion(item, accountName, output) {
       console.log(`✅ 题号 ${item.question_number}: 已成功处理。结果: ${resultPath}, 截图: ${screenshotPath}`);
       
       if (browser && browser.isConnected()) await browser.close();
+      success = true; // 标记成功处理
       return; // 成功，退出函数
 
     } catch (err) {
