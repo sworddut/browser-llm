@@ -1,3 +1,7 @@
+/**
+ * 豆包 SSE 拦截测试脚本
+ * 用于测试 SSE 拦截器在豆包平台上的工作情况
+ */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -21,50 +25,8 @@ const sseInterceptor = require('./utils/sseInterceptor.js');
             context = await browser.newContext();
         }
         
-        // 创建页面并添加监听器
+        // 创建页面
         const page = await context.newPage();
-        
-        // 监听网络请求，查找 SSE 请求
-        page.on('request', request => {
-            const url = request.url();
-            if (url.includes('PullExperienceMessage')) {
-                console.log(`捕获到豆包 SSE 请求: ${url}`);
-            }
-        });
-        
-        // 监听网络响应，查找 SSE 响应
-        page.on('response', async response => {
-            const url = response.url();
-            if (url.includes('PullExperienceMessage')) {
-                console.log(`捕获到豆包 SSE 响应: ${url}`);
-                try {
-                    // 注意：SSE 响应无法直接通过 response.text() 获取完整内容
-                    // 因为它是流式传输，这里只能获取到初始响应
-                    const responseText = await response.text();
-                    console.log('初始响应内容:', responseText.substring(0, 500));
-                    
-                    // 保存响应内容到文件
-                    const debugDir = path.join(process.cwd(), 'debug');
-                    if (!fs.existsSync(debugDir)) {
-                        fs.mkdirSync(debugDir, { recursive: true });
-                    }
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const filename = path.join(debugDir, `doubao_sse_initial_${timestamp}.json`);
-                    fs.writeFileSync(filename, responseText, 'utf8');
-                    console.log(`初始 SSE 响应内容已保存到文件: ${filename}`);
-                    
-                    // 检查是否包含 [DONE]
-                    const doneRegex = /\[DONE\]/;
-                    const hasDone = doneRegex.test(responseText);
-                    console.log(`响应中是否包含 [DONE]: ${hasDone}`);
-                    if (hasDone) {
-                        console.log('检测到完成信号！');
-                    }
-                } catch (err) {
-                    console.error('读取响应内容时出错:', err.message);
-                }
-            }
-        });
         
         // 注入 SSE 拦截脚本
         await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { log: true });

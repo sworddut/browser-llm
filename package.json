@@ -11,7 +11,8 @@
     "qianwen": "cross-env LLM_TYPE=qianwen node src/index.js",
     "account": "cross-env node src/index.js --account",
     "help": "node src/index.js --help",
-    "test": "node src/test.js"
+    "test": "node src/test.js",
+    "test:doubao": "node src/test_doubao_sse.js"
   },
   "dependencies": {
     "minimist": "^1.2.8",
