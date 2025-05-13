@@ -3,7 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 // 从 utils/index.js 导入函数
-const { waitForSSECompletion_SimpleText, scrollToElementBottom,injectTimeDisplay } = require('./utils/index');
+const { waitForSSECompletion_SimpleText, scrollToElementBottom, injectTimeDisplay } = require('./utils/index');
+
+// 导入浏览器缓存配置
+const cacheConfig = require('./browser_cache_config');
 
 // DeepSeek/元宝自动化主流程
 async function processQuestion(item, accountName, output) {
@@ -41,7 +44,12 @@ async function processQuestion(item, accountName, output) {
   let browser; 
 
   try {
-    browser = await chromium.launch({ headless: false }); // Consider headless: true for production
+    // 使用持久化缓存配置启动浏览器
+    const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
+    browser = await chromium.launch({ 
+      headless: false,
+      ...cacheOptions
+    }); // Consider headless: true for production
     
     while (retryCount <= maxRetry) {
       console.log(`${logPrefix}开始处理，尝试 #${retryCount + 1}/${maxRetry + 1}`);
@@ -69,7 +77,11 @@ async function processQuestion(item, accountName, output) {
         page = await context.newPage();
         await page.setViewportSize({ width: 1280, height: 860 }); // Set a consistent viewport
 
-        await page.goto('https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
+        // 设置页面缓存策略
+        await cacheConfig.setupPageCaching(page);
+
+        // 使用优化的页面加载策略
+        await cacheConfig.optimizedGoto(page, 'https://yuanbao.tencent.com', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         // *** INJECT TIME DISPLAY HERE ***
         await injectTimeDisplay(page); // Call it after page load

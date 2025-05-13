@@ -8,6 +8,9 @@ const path = require('path');
 const utils = require('./utils/index.js');
 const sseInterceptor = require('./utils/sseInterceptor.js');
 
+// 导入浏览器缓存配置
+const cacheConfig = require('./browser_cache_config');
+
 /**
  * 豆包 LLM 自动化主流程
  * @param {Object} item - 问题项，包含问题编号、条件和具体问题
@@ -51,8 +54,12 @@ async function processQuestion(item, accountName, output) {
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
       
-      // 启动浏览器
-      browser = await chromium.launch({ headless: false }); // 根据需要设置 headless
+      // 启动浏览器，使用持久化缓存配置
+      const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
+      browser = await chromium.launch({ 
+        headless: false,
+        ...cacheOptions
+      }); // 根据需要设置 headless
       
       // 构建cookie文件路径
       const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
@@ -78,21 +85,39 @@ async function processQuestion(item, accountName, output) {
         logPrefix: `[INFO 题号 ${item.question_number}] ` 
       });
       
-      // 导航到豆包页面
+      // 导航到豆包页面 - 使用更精确的等待策略
+      console.log(`[INFO] 正在打开豆包页面...`);
+      
+      // 设置更精确的网络策略，允许缓存
+      await page.route('**/*', route => {
+        // 允许缓存静态资源
+        const request = route.request();
+        if (['image', 'stylesheet', 'script', 'font'].includes(request.resourceType())) {
+          route.continue({
+            headers: {
+              ...request.headers(),
+              'Cache-Control': 'max-age=3600',
+            }
+          });
+        } else {
+          route.continue();
+        }
+      });
+      
+      // 使用更精确的等待策略
       await page.goto('https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat', { 
-        waitUntil: 'domcontentloaded', 
+        waitUntil: 'networkidle', // 等待网络基本空闲
         timeout: 60000 
       });
       
       // 注入时间显示
       await utils.injectTimeDisplay(page);
       
-      // 等待页面加载完成
-      await page.waitForSelector('body', { timeout: 30000 });
+      console.log(`[INFO] 豆包页面已加载完成`);
       
       // 输入问题并发送
       const inputSelector = 'textarea.arco-textarea';
-      await page.waitForSelector(inputSelector, { timeout: 20000 });
+      await page.waitForSelector(inputSelector, { timeout: 30000 });
       
       await page.focus(inputSelector);
       await page.waitForTimeout(1000); // 等待聚焦生效

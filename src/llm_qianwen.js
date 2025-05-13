@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const utils = require('./utils/index.js');
 
+// 导入浏览器缓存配置
+const cacheConfig = require('./browser_cache_config');
+
 // 千问 LLM 自动化主流程
 async function processQuestion(item, accountName, output) {
   const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
@@ -35,7 +38,12 @@ async function processQuestion(item, accountName, output) {
 
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
-      browser = await chromium.launch({ headless: false }); // 或者根据需要设置 headless: true
+      // 使用持久化缓存配置启动浏览器
+      const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
+      browser = await chromium.launch({ 
+        headless: false,
+        ...cacheOptions
+      }); // 或者根据需要设置 headless: true
       
       // 构建cookie文件路径
       const cookiePath = path.join('cookies', accountName, 'qianwen-state.json');
@@ -54,7 +62,14 @@ async function processQuestion(item, accountName, output) {
         await page.setViewportSize({ width: 1200, height: 860 }); // Set a consistent viewport
       }
 
-      await page.goto('https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.16af7b08ALF9pt&tab=model#/efm/model_experience_center/text?modelId=qwq-32b', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      // 设置页面缓存策略
+      await cacheConfig.setupPageCaching(page);
+      
+      // 使用优化的页面加载策略
+      console.log(`[INFO] 正在打开千问页面...`);
+      await cacheConfig.optimizedGoto(page, 'https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.16af7b08ALF9pt&tab=model#/efm/model_experience_center/text?modelId=qwq-32b', { timeout: 60000 });
+      console.log(`[INFO] 千问页面已加载完成`);
+      
       await utils.injectTimeDisplay(page);
 
       // 等待输入框可用

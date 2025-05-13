@@ -12,9 +12,12 @@
     "account": "cross-env node src/index.js --account",
     "help": "node src/index.js --help",
     "test": "node src/test.js",
-    "test:doubao": "node src/test_doubao_sse.js"
+    "test:doubao": "node src/test_doubao_sse.js",
+    "consumer": "node node_consumer.js",
+    "producer": "python question_producer.py"
   },
   "dependencies": {
+    "ioredis": "^5.6.1",
     "minimist": "^1.2.8",
     "playwright": "^1.52.0"
   },
