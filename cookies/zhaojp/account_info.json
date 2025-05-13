@@ -7,13 +7,13 @@
       "stateFile": "deepseek-state.json"
     },
     "doubao-state": {
-      "url": "https://www.doubao.com/chat/",
-      "lastLogin": "2025-05-11T12:52:42.835Z",
+      "url": "https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat?id=excs-202505112350-%5BhUS6YGl--02IjHGvPmFeg%5D",
+      "lastLogin": "2025-05-13T08:11:33.119Z",
       "stateFile": "doubao-state.json"
     },
     "qianwen-state": {
-      "url": "https://www.tongyi.com/qianwen/",
-      "lastLogin": "2025-05-11T12:53:53.581Z",
+      "url": "https://bailian.console.aliyun.com/?tab=model#/efm/model_experience_center/text",
+      "lastLogin": "2025-05-13T08:13:45.216Z",
       "stateFile": "qianwen-state.json"
     }
   }

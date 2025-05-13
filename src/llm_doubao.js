@@ -11,6 +11,10 @@ const sseInterceptor = require('./utils/sseInterceptor.js');
 // 导入浏览器缓存配置
 const cacheConfig = require('./browser_cache_config');
 
+// 全局浏览器实例缓存
+// 格式: { accountName: { browser, context } }
+const browserCache = new Map();
+
 /**
  * 豆包 LLM 自动化主流程
  * @param {Object} item - 问题项，包含问题编号、条件和具体问题
@@ -50,29 +54,47 @@ async function processQuestion(item, accountName, output) {
     let context = null;
     let page = null;
     let allMessages = [];
+    let needToCloseBrowser = false; // 标记是否需要关闭浏览器
 
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
       
-      // 启动浏览器，使用持久化缓存配置
-      const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
-      browser = await chromium.launch({ 
-        headless: false,
-        ...cacheOptions
-      }); // 根据需要设置 headless
+      // 检查是否有缓存的浏览器实例
+      const cachedSession = browserCache.get(accountName);
       
-      // 构建cookie文件路径
-      const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
-      
-      // 检查cookie文件是否存在
-      if (!fs.existsSync(cookiePath)) {
-        console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
-        context = await browser.newContext(); // 无Cookie继续尝试
+      if (cachedSession && cachedSession.browser && cachedSession.browser.isConnected()) {
+        console.log(`[INFO] 使用缓存的浏览器实例处理题号 ${item.question_number}`);
+        browser = cachedSession.browser;
+        context = cachedSession.context;
       } else {
-        console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
-        context = await browser.newContext({
-          storageState: cookiePath
-        });
+        // 无缓存或缓存失效，创建新浏览器
+        console.log(`[INFO] 创建新浏览器实例处理题号 ${item.question_number}`);
+        needToCloseBrowser = true; // 标记需要关闭浏览器
+        
+        // 启动浏览器，使用持久化缓存配置
+        const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
+        browser = await chromium.launch({ 
+          headless: false,
+          ...cacheOptions
+        }); // 根据需要设置 headless
+        
+        // 构建cookie文件路径
+        const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
+        
+        // 检查cookie文件是否存在
+        if (!fs.existsSync(cookiePath)) {
+          console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
+          context = await browser.newContext(); // 无Cookie继续尝试
+        } else {
+          console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
+          context = await browser.newContext({
+            storageState: cookiePath
+          });
+        }
+        
+        // 将新创建的浏览器实例添加到缓存
+        browserCache.set(accountName, { browser, context });
+        needToCloseBrowser = false; // 已缓存，不需要关闭
       }
       
       // 创建页面
@@ -291,9 +313,15 @@ async function processQuestion(item, accountName, output) {
       
       console.log(`✅ 题号 ${item.question_number}: 已成功处理。结果: ${resultPath}, 截图: ${screenshotPath}`);
       
-      // 关闭浏览器
-      if (browser && browser.isConnected()) {
-        await browser.close();
+      // 成功时保留浏览器实例供下一题使用
+      if (page && !page.isClosed()) {
+        try {
+          // 清理当前页面，但保留浏览器和上下文
+          await page.close();
+          console.log(`[INFO] 成功关闭页面，保留浏览器实例供下一题使用`);
+        } catch (e) {
+          console.warn(`[WARN] 关闭页面时出错: ${e.message}`);
+        }
       }
       
       return; // 成功，退出函数
@@ -313,9 +341,14 @@ async function processQuestion(item, accountName, output) {
         }
       }
       
-      // 关闭浏览器
-      if (browser && browser.isConnected()) {
-        await browser.close(); // 在每次重试前关闭浏览器，确保下一次是全新的开始
+      // 如果需要关闭浏览器或遇到严重错误，才关闭浏览器
+      if ((needToCloseBrowser || retryCount >= maxRetry) && browser && browser.isConnected()) {
+        console.log(`[INFO] 关闭浏览器实例，原因: ${needToCloseBrowser ? '非缓存实例' : '重试次数过多'}`);
+        await browser.close();
+        // 从缓存中移除
+        browserCache.delete(accountName);
+      } else {
+        console.log(`[INFO] 保留浏览器实例供下一题使用`);
       }
       
       if (retryCount > maxRetry) {
