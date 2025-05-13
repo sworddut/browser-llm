@@ -28,7 +28,7 @@ const config = {
 
 // 账号池
 const accounts = [
-  { name: 'default', busy: false, lastUsed: 0, type: ['deepseek', 'doubao', 'qianwen'] },
+  // { name: 'default', busy: false, lastUsed: 0, type: ['deepseek', 'doubao', 'qianwen'] },
   { name: 'zhaojian', busy: false, lastUsed: 0, type: ['deepseek', 'doubao', 'qianwen'] },
   { name: 'zhaojp', busy: false, lastUsed: 0, type: ['deepseek', 'doubao', 'qianwen'] },
   // { name: 'acc3', busy: false, lastUsed: 0, type: ['qianwen'] },
@@ -66,7 +66,7 @@ function findAvailableAccount(llmType) {
 }
 
 /**
- * 处理单个题目，确保每题都由所有LLM平台处理
+ * 处理单个题目，确保每题都由同一账号处理所有LLM平台
  * @param {object} question 题目对象
  * @returns {Promise<void>}
  */
@@ -89,31 +89,37 @@ async function processQuestion(question) {
   // 写入题目内容
   fs.writeFileSync(tempQuestionFile, JSON.stringify([question.content], null, 2), 'utf8');
   
-  // 为每个平台创建一个处理任务
+  // 选择一个可用的账号来处理所有平台
+  // 优先选择一个所有平台都支持的账号
+  const availableAccounts = accounts.filter(account => !account.busy);
+  
+  if (availableAccounts.length === 0) {
+    console.log(`⚠️ 没有可用的账号来处理题目 ${question.question_id}，稍后重试`);
+    throw new Error(`No available accounts for question ${question.question_id}`);
+  }
+  
+  // 选择一个账号来处理所有平台
+  const selectedAccount = availableAccounts[0];
+  console.log(`👤 选择账号 ${selectedAccount.name} 处理题目 ${question.question_id} 的所有平台`);
+  
+  // 标记账号为忙碌状态
+  selectedAccount.busy = true;
+  
+  // 为每个平台创建一个处理任务，但都使用同一个账号
   for (const platform of llmPlatforms) {
     processingPromises.push(
       new Promise(async (resolve, reject) => {
         try {
-          // 为当前平台找到可用账号
-          const account = findAvailableAccount(platform);
-          
-          if (!account) {
-            console.log(`⚠️ 没有可用于处理 ${platform} 类型题目的账号，稍后重试`);
-            return reject(new Error(`No available account for ${platform}`));
-          }
-          
-          // 标记账号为忙碌状态
-          account.busy = true;
-          
           // 构建命令
           const args = [
             'src/index.js',
-            '-l', platform, // 使用当前平台，而不是题目的target
+            '-l', platform,
             '-i', tempQuestionFile
           ];
           
-          if (account.name !== 'default') {
-            args.push('-a', account.name);
+          // 使用选定的账号
+          if (selectedAccount.name !== 'default') {
+            args.push('-a', selectedAccount.name);
           }
           
           // 添加输出路径
@@ -123,7 +129,7 @@ async function processQuestion(question) {
           }
           args.push('-o', path.join(outputDir, `output_${question.question_id}`));
           
-          console.log(`🚀 启动处理: 题目 ${question.question_id} → ${platform} (账号: ${account.name})`);
+          console.log(`🚀 启动处理: 题目 ${question.question_id} → ${platform} (账号: ${selectedAccount.name})`);
           
           // 使用spawn而不是exec，以便实时获取输出
           const proc = spawn('node', args, {
@@ -149,7 +155,7 @@ async function processQuestion(question) {
           const jobId = `${question.question_id}_${platform}`;
           activeJobs.set(jobId, {
             process: proc,
-            account: account.name,
+            account: selectedAccount.name,
             platform: platform,
             startTime: Date.now()
           });
@@ -159,15 +165,11 @@ async function processQuestion(question) {
             proc.on('close', (code) => resolveProc(code));
           });
           
-          // 更新账号状态
-          account.busy = false;
-          account.lastUsed = Date.now();
-          
           // 记录处理结果
           const result = {
             question_id: question.question_id,
             platform: platform,
-            account: account.name,
+            account: selectedAccount.name,
             success: exitCode === 0,
             output: output,
             timestamp: new Date().toISOString()
@@ -189,10 +191,10 @@ async function processQuestion(question) {
           activeJobs.delete(jobId);
           
           if (exitCode === 0) {
-            console.log(`✅ 完成处理: 题目 ${question.question_id} → ${platform} (账号: ${account.name})`);
+            console.log(`✅ 完成处理: 题目 ${question.question_id} → ${platform} (账号: ${selectedAccount.name})`);
             resolve();
           } else {
-            console.error(`❌ 处理失败: 题目 ${question.question_id} → ${platform} (账号: ${account.name}), 退出码: ${exitCode}`);
+            console.error(`❌ 处理失败: 题目 ${question.question_id} → ${platform} (账号: ${selectedAccount.name}), 退出码: ${exitCode}`);
             reject(new Error(`Process exited with code ${exitCode}`));
           }
         } catch (err) {
@@ -210,6 +212,11 @@ async function processQuestion(question) {
   const failedPlatforms = results
     .map((result, index) => result.status === 'rejected' ? llmPlatforms[index] : null)
     .filter(Boolean);
+  
+  // 在所有平台处理完成后释放账号
+  selectedAccount.busy = false;
+  selectedAccount.lastUsed = Date.now();
+  console.log(`👤 账号 ${selectedAccount.name} 已释放，可用于处理新题目`);
   
   if (failedPlatforms.length > 0) {
     console.warn(`⚠️ 题目 ${question.question_id} 在以下平台处理失败: ${failedPlatforms.join(', ')}`);
