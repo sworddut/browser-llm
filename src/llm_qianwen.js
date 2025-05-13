@@ -125,9 +125,12 @@ async function processQuestion(item, accountName, output) {
               const lines = responseText.split('\n').filter(line => line.trim());
               if (lines.length > 0) {
                 // 获取最后一行（完整回答）
+
                 const lastLine = lines[lines.length - 1];
-                if (lastLine.startsWith('data:')) {
+                console.log("开始处理",lastLine)
+                if (lastLine) {
                   const jsonStr = lastLine.substring(5); // 移除 'data:' 前缀
+                  console.log("if里",typeof lastLine)
                   const data = JSON.parse(jsonStr);
                   if (data.data && data.data[0] && data.data[0].type === "JSON_TEXT" && data.data[0].value) {
                     const jsonValue = JSON.parse(data.data[0].value);

@@ -130,17 +130,26 @@ function extractContentFromSSE(messages, options = {}) {
   let totalLines = 0;
   let validLines = 0;
   let errorLines = 0;
+  let doneSignals = 0;
   
   for (const message of messages) {
     const lines = message.split('\n');
     for (const line of lines) {
       totalLines++;
       if (line.startsWith('data:')) {
+        // 检查是否是[DONE]信号
+        const dataContent = line.substring(5).trim();
+        if (dataContent === '[DONE]') {
+          if (log) console.log(`${logPrefix} 检测到完成信号 [DONE]`);
+          doneSignals++;
+          continue; // 跳过解析
+        }
+        
+        // 跳过空数据
+        if (!dataContent || dataContent === '{}') continue;
+        
         try {
-          const jsonStr = line.substring(5).trim();
-          if (!jsonStr || jsonStr === '{}') continue;
-          
-          const data = JSON.parse(jsonStr);
+          const data = JSON.parse(dataContent);
           if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
             content += data.choices[0].delta.content;
             validLines++;
@@ -150,7 +159,7 @@ function extractContentFromSSE(messages, options = {}) {
           errorLines++;
           if (log && errorLines < 5) { // 只记录前几个错误，避免日志过多
             console.warn(`${logPrefix} 解析 JSON 时出错: ${e.message}`);
-            console.warn(`${logPrefix} 问题数据: ${line.substring(0, 100)}...`);
+            console.warn(`${logPrefix} 问题数据: ${dataContent.substring(0, 100)}...`);
           }
         }
       }
@@ -158,7 +167,7 @@ function extractContentFromSSE(messages, options = {}) {
   }
   
   if (log) {
-    console.log(`${logPrefix} 处理统计: 总行数=${totalLines}, 有效内容行=${validLines}, 解析错误=${errorLines}`);
+    console.log(`${logPrefix} 处理统计: 总行数=${totalLines}, 有效内容行=${validLines}, 解析错误=${errorLines}, 完成信号=${doneSignals}`);
     console.log(`${logPrefix} 成功提取内容，长度: ${content.length}`);
     if (content.length > 0) {
       console.log(`${logPrefix} 内容预览: ${content.substring(0, 100)}...`);
