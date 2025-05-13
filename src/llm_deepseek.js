@@ -176,7 +176,7 @@ async function processQuestion(item, accountName, output) {
         }
 
         console.log(`${logPrefix}内容获取完毕，准备保存结果...`);
-        fs.writeFileSync(resultPath, JSON.stringify({ prompt: originalPromptForSaving, messages: allMessages }, null, 2), 'utf-8');
+        fs.writeFileSync(resultPath, JSON.stringify({ prompt: originalPromptForSaving, messages: allMessages, question_info: item }, null, 2), 'utf-8');
         console.log(`${logPrefix}结果已保存至 ${resultPath}`);
 
         await scrollToElementBottom(page, scrollContainerSelector, 500, { log: true, logPrefix });
@@ -214,7 +214,8 @@ async function processQuestion(item, accountName, output) {
           fs.writeFileSync(resultPath, JSON.stringify({
             prompt: originalPromptForSaving,
             error: `Failed after ${maxRetry + 1} attempts. Last error: ${err.message}`,
-            messages: allMessages // Save whatever messages were collected in the last failed attempt
+            messages: allMessages, // Save whatever messages were collected in the last failed attempt
+            question_info: item
           }, null, 2), 'utf-8');
           // No need to break here, loop condition will handle it
         } else {

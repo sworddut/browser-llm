@@ -155,7 +155,7 @@ async function processQuestion(item, accountName, output) {
                       page.removeListener('response', responseListener);
                       
                       // 直接保存结果
-                      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+                      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages,question_info: item}, null, 2), 'utf-8');
                       console.log(`[INFO 题号 ${item.question_number}] 结果已保存到: ${resultPath}`);
                       
                       // 等待内容显示在页面上
@@ -251,7 +251,7 @@ async function processQuestion(item, accountName, output) {
                           page.removeListener('response', continueResponseListener);
                           
                           // 直接保存结果
-                          fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+                          fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages,question_info: item}, null, 2), 'utf-8');
                           console.log(`[INFO 题号 ${item.question_number}] 结果已保存到: ${resultPath}`);
                           
                           // 等待内容显示在页面上
@@ -307,7 +307,7 @@ async function processQuestion(item, accountName, output) {
       }
 
       // 保存结果（即使为空）
-      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+      fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages,question_info: item}, null, 2), 'utf-8');
 
       // 滚动到底部并截图
       const chatContainerSelector = '[class^="scrollWrapper--"]';
