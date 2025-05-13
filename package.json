@@ -15,6 +15,7 @@
     "test:doubao": "node src/test_doubao_sse.js"
   },
   "dependencies": {
+    "lodash": "^4.17.21",
     "minimist": "^1.2.8",
     "playwright": "^1.52.0"
   },

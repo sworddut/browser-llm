@@ -1,3 +1,6 @@
 node_modules
 */outputs/*
 debug
+temp/*
+output/*
+logs/*

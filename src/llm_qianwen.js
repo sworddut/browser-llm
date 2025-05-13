@@ -131,7 +131,7 @@ async function processQuestion(item, accountName, output) {
                 if (lastLine) {
                   const jsonStr = lastLine.substring(5); // 移除 'data:' 前缀
                   console.log("if里",typeof lastLine)
-                  const data = JSON.parse(jsonStr);
+                  const data = JSON.parse(JSON.parse(jsonStr));
                   if (data.data && data.data[0] && data.data[0].type === "JSON_TEXT" && data.data[0].value) {
                     const jsonValue = JSON.parse(data.data[0].value);
                     if (jsonValue.data && jsonValue.data.responseCard && jsonValue.data.responseCard.sentenceList) {
@@ -180,114 +180,31 @@ async function processQuestion(item, accountName, output) {
       await page.keyboard.press('Enter');
       console.log(`[INFO] 题号 ${item.question_number}: 初始问题已发送，等待回复...`);
 
+      // 如果已经成功提取到回答，则不需要等待
+      if (success) {
+        console.log(`[INFO] 题号 ${item.question_number}: 已成功提取回答，跳过等待步骤`);
+        return; // 直接返回，不执行后续操作
+      }
+      
       // 等待一定时间，确保有足够时间捕获响应
       try {
         console.log(`[INFO] 题号 ${item.question_number}: 等待响应...`);
-        await page.waitForTimeout(30000); // 等待 30 秒
+        await page.waitForTimeout(60000); // 等待 60 秒，增加等待时间确保收到完整响应
         
         // 移除响应监听器
-        page.removeListener('response', responseListener);
-        console.log(`[INFO] 题号 ${item.question_number}: 初始回复处理完成`);
+        if (page && !page.isClosed()) {
+          page.removeListener('response', responseListener);
+          console.log(`[INFO] 题号 ${item.question_number}: 回复处理完成`);
+        }
       } catch (e) {
-        console.warn(`[WARN] 题号 ${item.question_number}: 等待响应时出错: ${e.message}`);
-      }
-
-      // 如果没有成功提取到回答，尝试发送"继续"
-      if (allMessages.length === 0 && continueCount < maxContinue) {
-        continueCount++;
-        console.log(`[INFO] 题号 ${item.question_number}: 尝试发送 "继续" (${continueCount}/${maxContinue})...`);
-        
-        try {
-          await page.waitForSelector(inputSelector, { timeout: 15000 });
-          
-          // 监听网络响应，查找 SSE 响应
-          const continueResponseListener = async response => {
-            const url = response.url();
-            if (url.includes('efm-ws.aliyuncs.com/sse')) {
-              console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] 捕获到 SSE 响应: ${url}`);
-              try {
-                const responseText = await response.text();
-                
-                // 保存响应内容到文件
-                const debugDir = path.join(process.cwd(), 'debug');
-                if (!fs.existsSync(debugDir)) {
-                  fs.mkdirSync(debugDir, { recursive: true });
-                }
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = path.join(debugDir, `qianwen_sse_${item.question_number}_continue${continueCount}_${timestamp}.json`);
-                fs.writeFileSync(filename, responseText, 'utf8');
-                console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] SSE 响应内容已保存到文件: ${filename}`);
-                
-                // 直接从响应中提取回答
-                try {
-                  // 尝试解析响应行
-                  const lines = responseText.split('\n').filter(line => line.trim());
-                  if (lines.length > 0) {
-                    // 获取最后一行（完整回答）
-                    const lastLine = lines[lines.length - 1];
-                    if (lastLine.startsWith('data:')) {
-                      const jsonStr = lastLine.substring(5); // 移除 'data:' 前缀
-                      const data = JSON.parse(jsonStr);
-                      if (data.data && data.data[0] && data.data[0].type === "JSON_TEXT" && data.data[0].value) {
-                        const jsonValue = JSON.parse(data.data[0].value);
-                        if (jsonValue.data && jsonValue.data.responseCard && jsonValue.data.responseCard.sentenceList) {
-                          const content = jsonValue.data.responseCard.sentenceList[0].content;
-                          allMessages = [content]; // 直接设置为最终回答
-                          console.log(`[INFO 题号 ${item.question_number} 继续${continueCount}] 成功提取最终回答`);
-                          
-                          // 移除响应监听器
-                          page.removeListener('response', continueResponseListener);
-                          
-                          // 直接保存结果
-                          fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
-                          console.log(`[INFO 题号 ${item.question_number}] 结果已保存到: ${resultPath}`);
-                          
-                          // 等待内容显示在页面上
-                          await page.waitForTimeout(2000);
-                          
-                          // 滚动到底部并截图
-                          const chatContainerSelector = '[class*="custom-scroll-to-bottom_"] > div[class^="react-scroll-to-bottom"]';
-                          await utils.scrollToElementBottom(page, chatContainerSelector);
-                          await page.screenshot({ path: screenshotPath, fullPage: true });
-                          console.log(`[INFO 题号 ${item.question_number}] 截图已保存到: ${screenshotPath}`);
-                          
-                          console.log(`✅ 题号 ${item.question_number}: 已成功处理。`);
-                          
-                          if (browser && browser.isConnected()) await browser.close();
-                          success = true; // 标记成功处理
-                          return; // 成功，退出函数
-                        }
-                      }
-                    }
-                  }
-                } catch (parseErr) {
-                  console.error(`[ERROR 题号 ${item.question_number} 继续${continueCount}] 解析响应内容时出错:`, parseErr.message);
-                }
-              } catch (err) {
-                console.error(`[INFO 题号 ${item.question_number} 继续${continueCount}] 读取响应内容时出错:`, err.message);
-              }
-            }
-          };
-          page.on('response', continueResponseListener);
-          
-          // 发送继续指令
-          await page.fill(inputSelector, '继续');
-          await page.focus(inputSelector);
-          await page.waitForTimeout(2000); // 等待聚焦生效
-          await page.keyboard.press('Enter');
-          console.log(`[INFO] 题号 ${item.question_number}: "继续"已发送，等待回复...`);
-          
-          // 等待一定时间，确保有足够时间捕获响应
-          await page.waitForTimeout(30000); // 等待 30 秒
-          
-          // 移除响应监听器
-          page.removeListener('response', continueResponseListener);
-          console.log(`[INFO] 题号 ${item.question_number}: "继续" #${continueCount} 处理完成`);
-          
-        } catch (e) {
-          console.warn(`[WARN] 题号 ${item.question_number}: "继续"处理时出错: ${e.message}`);
+        // 如果是因为浏览器已关闭导致的错误，则不需要记录警告
+        if (!e.message.includes('Target page, context or browser has been closed')) {
+          console.warn(`[WARN] 题号 ${item.question_number}: 等待响应时出错: ${e.message}`);
         }
       }
+      
+      // 不再使用“继续”功能
+      console.log(`[INFO] 题号 ${item.question_number}: 不使用“继续”功能，直接处理已获取的内容`);
       
       // 如果仍然没有获取到回答，记录警告
       if (allMessages.length === 0) {
@@ -310,6 +227,22 @@ async function processQuestion(item, accountName, output) {
       return; // 成功，退出函数
 
     } catch (err) {
+      // 如果已经成功提取到回答，则忽略错误
+      if (success) {
+        console.log(`[INFO] 题号 ${item.question_number}: 已成功提取回答，忽略错误: ${err.message}`);
+        return; // 直接返回，不重试
+      }
+      
+      // 如果是因为浏览器已关闭导致的错误，但我们已经有了回答，则不重试
+      if (err.message.includes('Target page, context or browser has been closed') && allMessages.length > 0) {
+        console.log(`[INFO] 题号 ${item.question_number}: 浏览器已关闭，但已有回答，不重试`);
+        // 保存结果
+        fs.writeFileSync(resultPath, JSON.stringify({ prompt, messages: allMessages}, null, 2), 'utf-8');
+        console.log(`[INFO] 题号 ${item.question_number}: 结果已保存到: ${resultPath}`);
+        success = true;
+        return; // 直接返回，不重试
+      }
+      
       console.error(`[ERROR] 题号 ${item.question_number} (尝试 ${retryCount + 1}) 发生错误: ${err.message}`);
       retryCount++;
       if (page && !page.isClosed() && browser && browser.isConnected()) {
