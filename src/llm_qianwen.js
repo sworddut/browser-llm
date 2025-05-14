@@ -102,7 +102,35 @@ async function processQuestion(item, accountName, output) {
       
       // 如果成功提取到回答
       if (extractedAnswer) {
-        // 保存结果
+        // 检查是否是超时结果
+        if (extractedAnswer === "已超时") {
+          console.warn(`[WARN] 题号 ${item.question_number}: 检测到超时结果，将重试`);
+          
+          // 关闭浏览器
+          await safeCloseBrowser(browser);
+          
+          // 重置提取到的回答，让重试机制生效
+          extractedAnswer = null;
+          
+          // 增加重试计数
+          retryCount++;
+          
+          // 检查是否达到最大重试次数
+          if (retryCount > maxRetry) {
+            console.warn(`[WARN] 题号 ${item.question_number}: 超时重试次数已达上限，保存超时结果并跳到下一题`);
+            // 保存超时结果并继续
+            saveResult(resultPath, prompt, "已超时", item, true);
+            console.log(`⚠️ 题号 ${item.question_number}: 多次超时，已保存超时结果。结果: ${resultPath}`);
+            return; // 跳到下一题
+          }
+          
+          // 等待一段时间后重试
+          console.log(`[INFO] 题号 ${item.question_number}: 超时后准备重试，等待片刻...`);
+          await new Promise(resolve => setTimeout(resolve, TIMEOUT.RETRY_DELAY));
+          continue; // 继续循环，重新尝试
+        }
+        
+        // 非超时结果，正常保存
         saveResult(resultPath, prompt, extractedAnswer, item);
         
         // 尝试截图（如果页面仍然打开）
@@ -319,10 +347,14 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
           console.warn(`[WARN 题号 ${questionNumber}] 所有获取内容的方法都失败，设置为"已超时"`);
           try {
             // 截图
-            await page.screenshot({ path: screenshotPath, fullPage: true });
-            console.log(`[INFO 题号 ${questionNumber}] 超时截图已保存到: ${screenshotPath}`);
+            const timeoutErrorScreenshotPath = path.join(
+              path.dirname(screenshotPath),
+              `qianwen_output_${questionNumber}_error_timeout.png`
+            );
+            await page.screenshot({ path: timeoutErrorScreenshotPath, fullPage: true });
+            console.log(`[INFO 题号 ${questionNumber}] 超时错误截图已保存到: ${timeoutErrorScreenshotPath}`);
           } catch (screenshotErr) {
-            console.error(`[ERROR 题号 ${questionNumber}] 保存超时截图失败: ${screenshotErr.message}`);
+            console.error(`[ERROR 题号 ${questionNumber}] 保存超时错误截图失败: ${screenshotErr.message}`);
           }
           
           // 返回超时结果
@@ -336,10 +368,14 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
         // 错误情况下也截图并返回"已超时"
         try {
           // 截图
-          await page.screenshot({ path: screenshotPath, fullPage: true });
-          console.log(`[INFO 题号 ${questionNumber}] 错误情况截图已保存到: ${screenshotPath}`);
+          const timeoutErrorScreenshotPath = path.join(
+            path.dirname(screenshotPath),
+            `qianwen_output_${questionNumber}_error_timeout.png`
+          );
+          await page.screenshot({ path: timeoutErrorScreenshotPath, fullPage: true });
+          console.log(`[INFO 题号 ${questionNumber}] 超时错误截图已保存到: ${timeoutErrorScreenshotPath}`);
         } catch (screenshotErr) {
-          console.error(`[ERROR 题号 ${questionNumber}] 保存错误截图失败: ${screenshotErr.message}`);
+          console.error(`[ERROR 题号 ${questionNumber}] 保存超时错误截图失败: ${screenshotErr.message}`);
         }
         
         // 返回超时结果
