@@ -3,7 +3,17 @@ const fs = require('fs');
 const path = require('path');
 
 // 从 utils/index.js 导入函数
-const { waitForSSECompletion_SimpleText, scrollToElementBottom,injectTimeDisplay } = require('./utils/index');
+const { waitForSSECompletion_SimpleText, scrollToElementBottom, injectTimeDisplay } = require('./utils/index');
+
+// 常量定义
+const TIMEOUT = {
+  PAGE_LOAD: 60000,      // 页面加载超时：60秒
+  INPUT_WAIT: 15000,     // 等待输入框出现：15秒
+  RESPONSE_WAIT: 15 * 60 * 1000, // 等待响应：15分钟
+  COPY_BUTTON_WAIT: 30000, // 等待复制按钮：30秒
+  CLIPBOARD_WAIT: 1000,  // 等待剪贴板操作完成：1秒
+  RETRY_DELAY: 5000      // 重试延迟：5秒
+};
 
 // DeepSeek/元宝自动化主流程
 async function processQuestion(item, accountName, output) {
@@ -11,7 +21,7 @@ async function processQuestion(item, accountName, output) {
   const questionNumber = item.question_number;
   const logPrefix = `[deepseek Q${questionNumber}] `;
 
-  const constructedPrompt = `${logPrefix}问题编号：${questionNumber}\n条件：${item.condition}\n\n问题：${item.specific_questions}\n\n请根据以下要求作答：\n1. 给出你的答题过程，可适当简略，但保留关键步骤，保证逻辑完整。\n2. 将最终答案单独列出，格式清晰。\n3. 请不要思考太长时间\n请在全部问题回答完毕后输出：“回答完毕”\n示例输出结构如下：\n答题过程：\n（在这里说明推理过程和关键步骤）\n最终答案：\n（清晰列出结果）\n回答完毕`;
+  const constructedPrompt = `${logPrefix}问题编号：${questionNumber}\n条件：${item.condition}\n\n问题：${item.specific_questions}\n\n请根据以下要求作答：\n1. 给出你的答题过程，可适当简略，但保留关键步骤，保证逻辑完整,所有数学公式均使用latex格式。\n2. 将最终答案单独列出，格式清晰。\n3. 请不要思考太长时间\n请在全部问题回答完毕后输出：“回答完毕”\n示例输出结构如下：\n答题过程：\n（在这里说明推理过程和关键步骤）\n最终答案：\n（清晰列出结果）\n回答完毕`;
   const answerSelector = '.hyc-component-reasoner__text';
   const scrollContainerSelector = '.agent-chat__list__content-wrapper';
   const inputSelector = '.ql-editor[contenteditable="true"]';
@@ -86,6 +96,54 @@ async function processQuestion(item, accountName, output) {
         await page.waitForSelector(inputSelector, { state: 'visible', timeout: 30000 });
         console.log(`${logPrefix}输入框可见`);
 
+        await page.locator('.agent-chat__list').click({ timeout: 3000 });
+
+        /**
+         * 尝试从复制按钮获取内容
+         * @returns {Promise<string|null>} 从剪贴板获取的内容，失败则返回null
+         */
+        async function tryGetContentFromClipboard() {
+          console.log(`${logPrefix}尝试使用复制按钮获取回答...`);
+          try {
+            // 授予剪贴板权限
+            await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+            
+            // 尝试定位复制按钮
+            const copyButtonSelector = '.agent-chat__bubble__content .agent-chat__toolbar__item .yb-icon';
+            
+            try {
+              // 等待复制按钮出现
+              await page.waitForSelector(copyButtonSelector, { timeout: TIMEOUT.COPY_BUTTON_WAIT });
+              
+              // 清空剪贴板
+              await page.evaluate(() => navigator.clipboard.writeText(''));
+              
+              // 点击复制按钮
+              await page.click(copyButtonSelector);
+              console.log(`${logPrefix}已点击复制按钮`);
+              
+              // 等待一下确保复制操作完成
+              await page.waitForTimeout(TIMEOUT.CLIPBOARD_WAIT);
+              
+              // 获取剪贴板内容
+              const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+              
+              if (clipboardContent && clipboardContent.trim()) {
+                console.log(`${logPrefix}成功从剪贴板获取内容，长度: ${clipboardContent.length}`);
+                return clipboardContent.trim();
+              } else {
+                console.warn(`${logPrefix}剪贴板内容为空`);
+              }
+            } catch (err) {
+              console.warn(`${logPrefix}使用复制按钮时出错: ${err.message}`);
+            }
+          } catch (clipboardErr) {
+            console.error(`${logPrefix}剪贴板操作失败: ${clipboardErr.message}`);
+          }
+          
+          return null; // 未能获取内容
+        }
+        
         async function sendTextAndWaitForCompletion(textToSend, isContinuation = false) {
           const inputElement = page.locator(inputSelector);
           await inputElement.waitFor({ state: 'visible', timeout: 15000 });
@@ -126,13 +184,29 @@ async function processQuestion(item, accountName, output) {
         }
 
         await sendTextAndWaitForCompletion(constructedPrompt);
+        
+        // 优先尝试从复制按钮获取内容
+        console.log(`${logPrefix}尝试从复制按钮获取完整回答...`);
+        const clipboardContent = await tryGetContentFromClipboard();
+        
+        if (clipboardContent) {
+          console.log(`${logPrefix}成功从复制按钮获取内容，使用此内容作为最终回答`);
+          // 使用从剪贴板获取的内容替换消息
+          allMessages = [clipboardContent];
+        } else {
+          console.log(`${logPrefix}从复制按钮获取内容失败，使用DOM中提取的内容`);
+        }
 
         const stopContinuingKeywords = ["总结完毕", "回答完毕", "没有更多内容", "已经全部", "上述总结", "希望以上回复对您有所帮助"];
         let lastMessageText = allMessages.length > 0 ? allMessages[allMessages.length - 1].toLowerCase() : "";
         
+        // 如果已经从剪贴板获取了完整内容，则不需要继续发送"继续"
+        if (clipboardContent) {
+            console.log(`${logPrefix}已从剪贴板获取完整内容，不需要发送"继续"。`);
+        }
         // Initial check if the first response itself contains stop keywords
-        if (stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))) {
-             console.log(`${logPrefix}初始回答已包含停止关键词，不发送“继续”。`);
+        else if (stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))) {
+             console.log(`${logPrefix}初始回答已包含停止关键词，不发送"继续"。`);
         } else {
             while (
                 currentContinueCount < maxContinuePerAttempt &&
@@ -145,15 +219,27 @@ async function processQuestion(item, accountName, output) {
                 currentContinueCount++;
                 console.log(`${logPrefix}尝试发送 "继续" (${currentContinueCount}/${maxContinuePerAttempt})...`);
                 await sendTextAndWaitForCompletion("继续", true);
+                
+                // 在发送"继续"后再次尝试使用复制按钮获取内容
+                console.log(`${logPrefix}在发送"继续"后尝试从复制按钮获取完整回答...`);
+                const continueClipboardContent = await tryGetContentFromClipboard();
+                
+                if (continueClipboardContent) {
+                    console.log(`${logPrefix}成功从剪贴板获取内容，使用此内容作为最终回答`);
+                    // 使用从剪贴板获取的内容替换消息
+                    allMessages = [continueClipboardContent];
+                    break; // 已获取完整内容，不再继续
+                }
+                
                 if (allMessages.length > 0) {
                     lastMessageText = allMessages[allMessages.length - 1].toLowerCase();
                 } else {
-                    console.warn(`${logPrefix}"继续" 后未获取到消息。停止“继续”。`);
+                    console.warn(`${logPrefix}"继续" 后未获取到消息。停止"继续"。`);
                     break; 
                 }
 
                 if (stopContinuingKeywords.some(keyword => lastMessageText.includes(keyword))) {
-                    console.log(`${logPrefix}检测到停止关键词，停止“继续”。`);
+                    console.log(`${logPrefix}检测到停止关键词，停止"继续"。`);
                     break;
                 }
             }
@@ -171,6 +257,10 @@ async function processQuestion(item, accountName, output) {
         
         // const scrollLocator = page.locator(scrollContainerSelector);
         // const boundingBox = await scrollLocator.boundingBox();
+        await page.locator('.agent-chat__list').click({ timeout: 3000 });
+
+        await page.waitForTimeout(1500)
+
         //截完整的图
         await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 15000 });
         console.log(`${logPrefix}截图已保存至 ${screenshotPath}`);

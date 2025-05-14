@@ -17,7 +17,7 @@ const sseInterceptor = require('./utils/sseInterceptor.js');
  */
 async function processQuestion(item, accountName, output) {
   // 构建提示词
-  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
+  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}\n\n请根据以下要求作答：\n1. 给出你的答题过程，可适当简略，但保留关键步骤，保证逻辑完整,所有数学公式均使用latex格式。\n2. 将最终答案单独列出，格式清晰。\n3. 请不要思考太长时间\n请在全部问题回答完毕后输出：“回答完毕”\n示例输出结构如下：\n答题过程：\n（在这里说明推理过程和关键步骤）\n最终答案：\n（清晰列出结果）\n回答完毕`;
   const answerSelector = 'div[theme-mode][dir="ltr"].flow-markdown-body'; // 豆包的回答容器选择器
   
   // 使用自定义输出路径或默认路径
