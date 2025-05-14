@@ -312,21 +312,11 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
         try {
           responseText = await response.text();
           console.log(`[INFO 题号 ${questionNumber}] 成功获取网络响应内容，长度: ${responseText.length}`);
-          
-          // 保存响应内容到文件（调试用）
-          saveResponseToFile(responseText, questionNumber);
-          
-          // 尝试提取回答
-          const answer = extractAnswerFromResponse(responseText, questionNumber);
-          if (answer) {
-            console.log(`[INFO 题号 ${questionNumber}] 从网络响应成功提取回答`);
-            page.removeListener('response', responseListener);
-            resolve(answer);
-            return;
-          }
+
         } catch (networkErr) {
-          console.warn(`[WARN 题号 ${questionNumber}] 从网络获取响应失败: ${networkErr.message}`);
-          
+          console.warn(`[WARN 题号 ${questionNumber}] 从网络获取响应失败: ${networkErr.message}`);                  
+        }
+        finally{
           // 网络获取失败，尝试使用复制按钮
           const clipboardContent = await tryGetContentFromClipboard(page, questionNumber, screenshotPath);
           if (clipboardContent) {
@@ -334,7 +324,7 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
             resolve(clipboardContent);
             return;
           }
-          
+
           // 如果复制按钮方法失败，尝试从DOM中获取
           const domContent = await tryGetContentFromDOM(page, questionNumber);
           if (domContent) {
@@ -342,7 +332,7 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
             resolve(domContent);
             return;
           }
-          
+
           // 所有方法都失败，截图并返回"已超时"
           console.warn(`[WARN 题号 ${questionNumber}] 所有获取内容的方法都失败，设置为"已超时"`);
           try {
@@ -356,7 +346,7 @@ function createResponsePromise(page, questionNumber, screenshotPath) {
           } catch (screenshotErr) {
             console.error(`[ERROR 题号 ${questionNumber}] 保存超时错误截图失败: ${screenshotErr.message}`);
           }
-          
+
           // 返回超时结果
           page.removeListener('response', responseListener);
           resolve("已超时");
@@ -532,73 +522,6 @@ async function tryGetContentFromDOM(page, questionNumber) {
   }
   
   return null; // 未能获取内容
-}
-
-/**
- * 从网络响应中提取回答
- * @param {string} responseText - 响应文本
- * @param {string} questionNumber - 问题编号（用于日志）
- * @returns {string|null} - 提取到的回答或null
- */
-function extractAnswerFromResponse(responseText, questionNumber) {
-  try {
-    // 尝试解析响应行
-    const lines = responseText.split('\n').filter(line => line.trim());
-    if (lines.length === 0) return null;
-    
-    console.log(`[DEBUG] 响应行数: ${lines.length}`);
-    for (let i = 0; i < Math.min(lines.length, 3); i++) {
-      console.log(`[DEBUG] 行 ${i}: ${lines[i].substring(0, 100)}${lines[i].length > 100 ? '...' : ''}`);
-    }
-    
-    // 尝试从所有行中提取内容
-    let content = '';
-    
-    for (const line of lines) {
-      if (line.startsWith('data:')) {
-        try {
-          const jsonStr = line.substring(5).trim(); // 移除 'data:' 前缀
-          if (!jsonStr || jsonStr === '[DONE]') continue;
-          
-          const data = JSON.parse(jsonStr);
-          
-          // 尝试不同的数据格式
-          if (data.content) {
-            content += data.content;
-          } else if (data.data && Array.isArray(data.data)) {
-            for (const item of data.data) {
-              if (item.type === "JSON_TEXT" && item.value) {
-                try {
-                  const jsonValue = JSON.parse(item.value);
-                  
-                  if (jsonValue.data && jsonValue.data.responseCard && jsonValue.data.responseCard.sentenceList) {
-                    const sentenceContent = jsonValue.data.responseCard.sentenceList[0].content;
-                    if (sentenceContent) {
-                      console.log(`[INFO 题号 ${questionNumber}] 成功提取JSON_TEXT内容`);
-                      return sentenceContent;
-                    }
-                  }
-                } catch (jsonErr) {
-                  // 忽略JSON解析错误
-                }
-              }
-            }
-          }
-        } catch (e) {
-          // 忽略解析错误
-        }
-      }
-    }
-    
-    if (content) {
-      console.log(`[INFO 题号 ${questionNumber}] 成功提取内容，长度: ${content.length}`);
-      return content;
-    }
-  } catch (err) {
-    console.error(`[ERROR 题号 ${questionNumber}] 提取回答时出错: ${err.message}`);
-  }
-  
-  return null; // 未能提取到回答
 }
 
 /**
