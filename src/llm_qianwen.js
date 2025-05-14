@@ -223,7 +223,7 @@ async function initBrowser(accountName, questionNumber) {
   }
   
   const page = await context.newPage();
-  await page.setViewportSize({ width: 1200, height: 860 });
+  await page.setViewportSize({ width: 1920, height: 1080 });
   
   // 监听权限请求并自动接受
   page.context().on('page', async newPage => {

@@ -1,0 +1,20 @@
+{
+  "lastUpdated": "2025-05-12T08:52:13.629Z",
+  "platforms": {
+    "doubao-state": {
+      "url": "https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat?id=excs-202505112350-%5BhUS6YGl--02IjHGvPmFeg%5D",
+      "lastLogin": "2025-05-14T11:36:46.988Z",
+      "stateFile": "doubao-state.json"
+    },
+    "deepseek-state": {
+      "url": "https://yuanbao.tencent.com",
+      "lastLogin": "2025-05-14T11:35:45.616Z",
+      "stateFile": "deepseek-state.json"
+    },
+    "qianwen-state": {
+      "url": "https://bailian.console.aliyun.com/?tab=model#/efm/model_experience_center/text",
+      "lastLogin": "2025-05-14T11:37:46.628Z",
+      "stateFile": "qianwen-state.json"
+    }
+  }
+}

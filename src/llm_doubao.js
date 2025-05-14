@@ -70,7 +70,7 @@ async function processQuestion(item, accountName, output) {
       
       // 创建页面
       page = await context.newPage();
-      await page.setViewportSize({ width: 1280, height: 860 }); // 设置一致的视口大小
+      await page.setViewportSize({ width: 1920, height: 1080 }); // 设置一致的视口大小
       
       // 注入 SSE 拦截脚本
       await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { 
