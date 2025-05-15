@@ -4,3 +4,6 @@ debug
 temp/*
 output/*
 logs/*
+.env
+input/*
+三模型表/*
