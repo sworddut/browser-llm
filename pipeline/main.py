@@ -8,6 +8,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from prompts import *
 from utils import *
+import random
 
 # 如果存在 .env 文件,从中加载环境变量
 load_dotenv()
@@ -89,7 +90,8 @@ def process_question(problem_obj, json_path):
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                encoding='utf-8'
             )
 
             output = []
