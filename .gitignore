@@ -4,3 +4,4 @@ debug
 temp/*
 output/*
 logs/*
+.env
