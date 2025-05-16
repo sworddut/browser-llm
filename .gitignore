@@ -4,6 +4,7 @@ debug
 temp/*
 output/*
 logs/*
-input/*
 .env
+input/*
 三模型表/*
+*.pyc
