@@ -10,6 +10,8 @@ from prompts import *
 from utils import *
 import random
 import threading
+import numpy as np
+import argparse
 
 # 如果存在 .env 文件,从中加载环境变量
 load_dotenv()
@@ -21,10 +23,12 @@ client = OpenAI(
 )
 MODEL = "deepseek-chat"
 
-# 文件路径配置
-INPUT_JSON_FILE = "questions_extracted.json"
-OUTPUT_JSON_FILE = "questions_transformed_ds.json"
-CHECKPOINT_FILE = "last_call_ds.npy"
+# 默认文件路径配置
+DEFAULT_INPUT_FILE = "split_questions\\questions_part_1_of_3.json"
+DEFAULT_CHECKPOINT_FILE = "last_process.npy"
+DEFAULT_PDF_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).pdf"
+DEFAULT_JSON_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).json"
+DEFAULT_OUTPUT_DIR = "三模型表"
 
 def call_deepseek(prompt):
     """调用DeepSeek API"""
@@ -61,6 +65,8 @@ def run_llm_process(llm, ques_id):
 
 def process_question(problem_obj, json_path):
     """处理单个问题"""
+    global MODEL  # 添加全局变量声明
+    
     print(f"\n-------------------处理题目 (question_number: {problem_obj.get('id')})----------------------")
     
     if "图" in problem_obj.get("question",""):
@@ -287,35 +293,85 @@ def process_question(problem_obj, json_path):
 
 def main():
     """主函数"""
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="处理物理题目并生成Excel表格")
+    parser.add_argument("--input", default=DEFAULT_INPUT_FILE, help="输入JSON文件路径")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT_FILE, help="检查点文件路径")
+    parser.add_argument("--pdf", default=DEFAULT_PDF_PATH, help="PDF文件路径")
+    parser.add_argument("--json", default=DEFAULT_JSON_PATH, help="提取的PDF文本JSON文件路径")
+    parser.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR, help="输出Excel文件目录")
+    args = parser.parse_args()
+    
+    # 确保输出目录存在
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    # 使用命令行参数设置文件路径
+    input_file = args.input
+    checkpoint_file = args.checkpoint
+    pdf_path = args.pdf
+    json_path = args.json
+    output_dir = args.output_dir
+    
+    print(f"使用参数:\n输入文件: {input_file}\n检查点文件: {checkpoint_file}\nPDF文件: {pdf_path}\nJSON文件: {json_path}\n输出目录: {output_dir}")
+
+    # 尝试加载之前的处理进度
+    if os.path.exists(checkpoint_file):
+        try:
+            checkpoint = np.load(checkpoint_file, allow_pickle=True).item()
+            question_numberx = checkpoint.get("question_numberx", 0)
+            data = checkpoint.get("data", pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"]))
+            print(f"已从检查点恢复，继续处理第 {question_numberx} 个问题，已有 {len(data)} 条记录")
+        except Exception as e:
+            print(f"加载检查点失败: {e}，将从头开始处理")
+            question_numberx = 0
+            data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
+    else:
+        print("未找到检查点文件，将从头开始处理")
+        question_numberx = 0
+        data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
+
     # 加载题目数据
     try:
-        with open(INPUT_JSON_FILE, "r", encoding="utf-8") as f:
+        with open(input_file, "r", encoding="utf-8") as f:
             original_questions = json.load(f)
     except FileNotFoundError:
-        print(f"错误:未找到输入文件 {INPUT_JSON_FILE}。")
+        print(f"错误:未找到输入文件 {input_file}。")
         return
-
-    # 定义PDF文件路径
-    pdf_path = r"物理学难题集萃(增订本)【舒幼生等】_part1(OCR).pdf"
-    json_path = r"物理学难题集萃(增订本)【舒幼生等】_part1(OCR).json"
 
     # 提取PDF文本
     extract_pdf_text(pdf_path, save_dir=json_path)
 
-    # 创建DataFrame
-    data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
-
-    # 处理每个问题
-    for question_numberx, problem_obj in enumerate(original_questions):
+    # 处理每个问题，从上次的位置继续
+    for idx, problem_obj in enumerate(original_questions[question_numberx:], question_numberx):
         results = process_question(problem_obj, json_path)
         if results:
             data = pd.concat([data, pd.DataFrame(results)], ignore_index=True)
+        
+        # 更新处理进度
+        question_numberx = idx + 1
+        
+        # 保存检查点
+        checkpoint_data = {
+            "question_numberx": question_numberx,
+            "data": data
+        }
+        np.save(checkpoint_file, checkpoint_data)
+        print(f"已保存检查点，当前处理到第 {question_numberx} 个问题，共 {len(data)} 条记录")
+        
+        # 每处理5道题保存一次Excel
+        if question_numberx % 5 == 0 or question_numberx == len(original_questions):
+            now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
+            file_path = os.path.join(output_dir, f"国内三模型_{now_time}.xlsx")
+            save_to_excel(data, file_path)
+            print(f"已保存Excel文件: {file_path}")
 
-        now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
-        file_path = f"三模型表/国内三模型_{now_time}.xlsx"
-        save_to_excel(data, file_path)
+    # 处理完所有问题后再保存一次Excel
+    now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
+    file_path = os.path.join(output_dir, f"国内三模型_{now_time}.xlsx")
+    save_to_excel(data, file_path)
+    print("所有问题处理完毕")
 
 if __name__ == "__main__":
     main() 
 
-    # python pipeline\main.py
+    # python pipeline\main.py --input split_questions\questions_part_1_of_3.json -checkpoint last_process_zht.npy
