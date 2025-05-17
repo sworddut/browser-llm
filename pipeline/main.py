@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from prompts import *
 from utils import *
 import random
+import threading
 
 # 如果存在 .env 文件,从中加载环境变量
 load_dotenv()
@@ -36,6 +37,28 @@ def call_deepseek(prompt):
     )
     return response.choices[0].message.content
 
+def run_llm_process(llm, ques_id):
+    """运行单个LLM进程并返回输出"""
+    cmd = rf"node src\index.js -l {llm} -i ./input/{ques_id}.json -a zht"
+    process = subprocess.Popen(
+        cmd, 
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        universal_newlines=True,
+        encoding='utf-8'
+    )
+
+    output = []
+    for line in iter(process.stdout.readline, ""):
+        print(line, end="")
+        output.append(line)
+        if "全部处理完成" in line:
+            break
+    return output
+
 def process_question(problem_obj, json_path):
     """处理单个问题"""
     print(f"\n-------------------处理题目 (question_number: {problem_obj.get('id')})----------------------")
@@ -53,7 +76,7 @@ def process_question(problem_obj, json_path):
     ans_json = {}
     while flag:
         try:
-            print(f"[提取五元组]第{count+1}次尝试")
+            print(f"[提取五元组]第{count+1}次尝试,使用模型{MODEL}...")
             ans = call_deepseek(prompt_extra+"\nQURSTION:"+f"【{problem_obj['id']}】"+problem_obj["question"]+"\nANSWER:"+problem_obj["answer"])
             ans_json = json.loads(ans)["result"]
             flag = False
@@ -80,26 +103,16 @@ def process_question(problem_obj, json_path):
 
         print(f"[处理第{index+1}个问题]{ques_id}.json file saved")
 
-        # 获取三模型答案
-        for llm in ["deepseek","qianwen","doubao"]:
-            cmd = rf"node src\index.js -l {llm} -i ./input/{ques_id}.json -a zht"
-            process = subprocess.Popen(
-                cmd, 
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                universal_newlines=True,
-                encoding='utf-8'
-            )
+        # 使用线程并行运行三个模型
+        threads = []
+        for llm in ["deepseek", "qianwen", "doubao"]:
+            thread = threading.Thread(target=run_llm_process, args=(llm, ques_id))
+            threads.append(thread)
+            thread.start()
 
-            output = []
-            for line in iter(process.stdout.readline, ""):
-                print(line, end="")
-                output.append(line)
-                if "全部处理完成" in line:
-                    break
+        # 等待所有线程完成
+        for thread in threads:
+            thread.join()
 
         print(f"\n[处理第{index+1}个问题]三模型回答截图完毕")
 
@@ -135,7 +148,10 @@ def process_question(problem_obj, json_path):
                     wrong_ans = qwen_ans
                     cwjfmx = "千问"
                     qw_jietu = rf"src\outputs\qianwen\qianwen_screenshot_{ques_id}.png"
-                    cwmx += "千问"
+                    if not cwmx:
+                        cwmx = "千问"
+                    else:
+                        cwmx += ",千问"
 
                 if "正确" in ds_ans3_json["学生2"]:
                     ds_correct = True
@@ -146,7 +162,10 @@ def process_question(problem_obj, json_path):
                     if not cwjfmx:
                         cwjfmx = "ds"
                     ds_jietu = rf"src\outputs\deepseek\deepseek_screenshot_{ques_id}.png"
-                    cwmx += ",ds"
+                    if not cwmx:
+                        cwmx = "ds"
+                    else:
+                        cwmx += ",ds"
 
                 if "正确" in ds_ans3_json["学生3"]:
                     db_correct = True
@@ -167,8 +186,11 @@ def process_question(problem_obj, json_path):
                     return None
 
         if qw_correct and ds_correct and db_correct:
-            print("[三模型都答对了，下一题]")
+            print("[三模型都答对了]下一题]")
             continue
+        
+        else:
+            print(f"[三模型有答错]正在提取内容，使用模型{MODEL}...")
 
         # 提取适合年级和子学科
         flag = True
@@ -224,12 +246,12 @@ def process_question(problem_obj, json_path):
         # 提取题目来源
         possible_substrings = get_consecutive_chinese_chars(item["condition"])
         pages = []
-        if possible_substrings:
-            for i in range(5):
+        if possible_substrings and len(possible_substrings) > 0:
+            for i in range(min(5, len(possible_substrings))):  # 确保不会超出列表范围
                 search_text = random.choice(possible_substrings)
-                page_k = find_text_in_saved_pdf(json_path, search_text)[0]
-                if page_k is not None:
-                    pages.append(page_k)
+                page_result = find_text_in_saved_pdf(json_path, search_text)
+                if page_result and len(page_result) > 0 and page_result[0] is not None:
+                    pages.append(page_result[0])
 
         page = find_mode(pages) if pages else None
 
@@ -255,7 +277,7 @@ def process_question(problem_obj, json_path):
             "错误模型": cwmx,
             "三模型打分": wrong_num,
             "deepseek": ds_jietu,
-            "qianwen": qw_jietu,
+            "千问": qw_jietu,
             "豆包": db_jietu,
             "题目来源": f"物理学难题集萃(增订本)【舒幼生等】_part1,第{page}页" if page else "未知",
         }
@@ -289,11 +311,11 @@ def main():
         if results:
             data = pd.concat([data, pd.DataFrame(results)], ignore_index=True)
 
-        # 每处理5个题目保存一次
-        if (question_numberx + 1) % 5 == 0 or question_numberx == len(original_questions) - 1:
-            now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
-            file_path = f"三模型表/国内三模型_{now_time}.xlsx"
-            save_to_excel(data, file_path)
+        now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
+        file_path = f"三模型表/国内三模型_{now_time}.xlsx"
+        save_to_excel(data, file_path)
 
 if __name__ == "__main__":
     main() 
+
+    # python pipeline\main.py
