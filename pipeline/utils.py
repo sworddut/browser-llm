@@ -51,8 +51,6 @@ def extract_pdf_text(pdf_path, save_dir=None):
     # 如果未提供保存目录，使用PDF所在目录
     if save_dir is None:
         save_dir = os.path.dirname(pdf_path)
-    else:
-        return
     
     # 创建保存目录（如果不存在）
     os.makedirs(save_dir, exist_ok=True)
