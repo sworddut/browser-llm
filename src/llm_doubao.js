@@ -8,6 +8,13 @@ const path = require('path');
 const utils = require('./utils/index.js');
 const sseInterceptor = require('./utils/sseInterceptor.js');
 
+// 导入浏览器缓存配置
+const cacheConfig = require('./browser_cache_config');
+
+// 全局浏览器实例缓存
+// 格式: { accountName: { browser, context } }
+const browserCache = new Map();
+
 /**
  * 豆包 LLM 自动化主流程
  * @param {Object} item - 问题项，包含问题编号、条件和具体问题
@@ -17,7 +24,7 @@ const sseInterceptor = require('./utils/sseInterceptor.js');
  */
 async function processQuestion(item, accountName, output) {
   // 构建提示词
-  const prompt = `条件：${item.condition}\n\n问题：${item.specific_questions} \n 不要思考太长时间，回答尽量简短，回答篇幅不要太长。`;
+  const prompt = `问题编号：${item.question_number}\n条件：${item.condition}\n\n问题：${item.specific_questions}，给一个最后答案的总结，思考不用太久。`;
   const answerSelector = 'div[theme-mode][dir="ltr"].flow-markdown-body'; // 豆包的回答容器选择器
   
   // 使用自定义输出路径或默认路径
@@ -47,52 +54,139 @@ async function processQuestion(item, accountName, output) {
     let context = null;
     let page = null;
     let allMessages = [];
+    let needToCloseBrowser = false; // 标记是否需要关闭浏览器
 
     try {
       console.log(`[INFO] 开始处理题号 ${item.question_number}, 尝试次数: ${retryCount + 1}/${maxRetry + 1}`);
       
-      // 启动浏览器
-      browser = await chromium.launch({ headless: false }); // 根据需要设置 headless
+      // 检查是否有缓存的浏览器实例
+      let cachedSession = browserCache.get(accountName);
       
-      // 构建cookie文件路径
-      const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
-      
-      // 检查cookie文件是否存在
-      if (!fs.existsSync(cookiePath)) {
-        console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
-        context = await browser.newContext(); // 无Cookie继续尝试
+      if (cachedSession && cachedSession.browser && cachedSession.browser.isConnected()) {
+        console.log(`[INFO] 使用缓存的浏览器实例处理题号 ${item.question_number}`);
+        browser = cachedSession.browser;
+        context = cachedSession.context;
       } else {
-        console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
-        context = await browser.newContext({
-          storageState: cookiePath
+        // 无缓存或缓存失效，创建新浏览器
+        console.log(`[INFO] 创建新浏览器实例处理题号 ${item.question_number}`);
+        needToCloseBrowser = true; // 标记需要关闭浏览器
+        
+        // 启动浏览器，使用持久化缓存配置
+        const cacheOptions = await cacheConfig.getPersistentCacheConfig(chromium, accountName);
+        browser = await chromium.launch({ 
+          headless: false,
+          ...cacheOptions
+        }); // 根据需要设置 headless
+        
+        // 构建cookie文件路径
+        const cookiePath = path.join('cookies', accountName, 'doubao-state.json');
+        
+        // 检查cookie文件是否存在
+        if (!fs.existsSync(cookiePath)) {
+          console.warn(`[WARN] Cookie文件不存在: ${cookiePath}，尝试使用默认路径`);
+          context = await browser.newContext(); // 无Cookie继续尝试
+        } else {
+          console.log(`[INFO] 使用Cookie文件: ${cookiePath}`);
+          context = await browser.newContext({
+            storageState: cookiePath
+          });
+        }
+        
+        // 将新创建的浏览器实例添加到缓存
+        browserCache.set(accountName, { browser, context });
+        needToCloseBrowser = false; // 已缓存，不需要关闭
+        
+        // 更新缓存会话引用
+        cachedSession = browserCache.get(accountName);
+      }
+      if (cachedSession && cachedSession.page && !cachedSession.page.isClosed()) {
+        // 直接使用缓存的页面
+        console.log(`[INFO] 使用缓存的页面实例处理题号 ${item.question_number}`);
+        page = cachedSession.page;
+        
+        // 清理上一题的内容，准备发送新题目
+        try {
+          // 点击新建对话按钮，或者直接清空输入框
+          const newChatButton = await page.$('button.new-chat-button');
+          if (newChatButton) {
+            await newChatButton.click();
+            console.log(`[INFO] 点击了新建对话按钮`);
+            // 等待页面加载
+            await page.waitForSelector('textarea[placeholder]', { timeout: 10000 });
+          }
+        } catch (e) {
+          console.warn(`[WARN] 点击新建对话按钮失败: ${e.message}`);
+        }
+        
+        // 重新注入 SSE 拦截脚本
+        await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { 
+          log: true, 
+          logPrefix: `[INFO 题号 ${item.question_number}] ` 
+        });
+      } else {
+        // 创建新页面
+        console.log(`[INFO] 创建新页面实例处理题号 ${item.question_number}`);
+        page = await context.newPage();
+        await page.setViewportSize({ width: 1280, height: 860 }); // 设置一致的视口大小
+        
+        // 注入 SSE 拦截脚本
+        await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { 
+          log: true, 
+          logPrefix: `[INFO 题号 ${item.question_number}] ` 
+        });
+        
+        // 导航到豆包页面 - 使用更精确的等待策略
+        console.log(`[INFO] 正在打开豆包页面...`);
+        
+        // 设置更精确的网络策略，允许缓存
+        await page.route('**/*', route => {
+          // 允许缓存静态资源
+          const request = route.request();
+          if (['image', 'stylesheet', 'script', 'font'].includes(request.resourceType())) {
+            route.continue({
+              headers: {
+                ...request.headers(),
+                'Cache-Control': 'max-age=3600',
+              }
+            });
+          } else {
+            route.continue();
+          }
+        });
+        
+        // 使用更精确的等待策略
+        await page.goto('https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat', { 
+          waitUntil: 'networkidle', // 等待网络基本空闲
+          timeout: 2*60000 
         });
       }
-      
-      // 创建页面
-      page = await context.newPage();
-      await page.setViewportSize({ width: 1920, height: 1080*2 }); // 设置一致的视口大小
-      
-      // 注入 SSE 拦截脚本
-      await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { 
-        log: true, 
-        logPrefix: `[INFO 题号 ${item.question_number}] ` 
-      });
-      
-      // 导航到豆包页面
-      await page.goto('https://console.volcengine.com/ark/region:ark+cn-beijing/experience/chat', { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 60000 
-      });
       
       // 注入时间显示
       await utils.injectTimeDisplay(page);
       
-      // 等待页面加载完成
-      await page.waitForSelector('body', { timeout: 30000 });
+      console.log(`[INFO] 豆包页面已加载完成`);
+      
+      // 尝试点击“清除上下文”按钮
+      try {
+        // 尝试点击清除上下文按钮
+        const clearContextSelector = 'button.btn-ffa1c5, button:has-text("清除上下文"), button:has(svg.force-icon-clean)';
+        const clearContextButton = await page.$(clearContextSelector);
+        
+        if (clearContextButton) {
+          await clearContextButton.click();
+          console.log(`[INFO] 题号 ${item.question_number}: 成功点击清除上下文按钮`);
+          // 等待清除操作完成
+          await page.waitForTimeout(1000);
+        } else {
+          console.warn(`[WARN] 题号 ${item.question_number}: 未找到清除上下文按钮，继续处理`);
+        }
+      } catch (e) {
+        console.warn(`[WARN] 题号 ${item.question_number}: 点击清除上下文按钮失败: ${e.message}，继续处理`);
+      }
       
       // 输入问题并发送
       const inputSelector = 'textarea.arco-textarea';
-      await page.waitForSelector(inputSelector, { timeout: 20000 });
+      await page.waitForSelector(inputSelector, { timeout: 30000 });
       
       await page.focus(inputSelector);
       await page.waitForTimeout(1000); // 等待聚焦生效
@@ -219,7 +313,7 @@ async function processQuestion(item, accountName, output) {
             }, answerSelector);
             
             if (domMessages.length > 0) {
-              allMessages = domMessages; // 使用 DOM 中的完整内容替换
+              allMessages = domMessages.at(-1); // 使用 DOM 中的完整内容替换
             }
           }
         } catch (error) {
@@ -256,7 +350,8 @@ async function processQuestion(item, accountName, output) {
       // 保存结果到文件
       fs.writeFileSync(resultPath, JSON.stringify({ 
         prompt, 
-        messages: allMessages 
+        messages: allMessages ,
+        question_info: item
       }, null, 2), 'utf-8');
       
       // 滚动到底部并截图
@@ -266,9 +361,16 @@ async function processQuestion(item, accountName, output) {
       
       console.log(`✅ 题号 ${item.question_number}: 已成功处理。结果: ${resultPath}, 截图: ${screenshotPath}`);
       
-      // 关闭浏览器
-      if (browser && browser.isConnected()) {
-        await browser.close();
+      // 成功时保留浏览器和页面实例，直接在同一页面处理下一题
+      // 注意：页面已经打开，下一题将直接重用这个页面
+      // 将页面和上下文保存到缓存中
+      if (page && !page.isClosed()) {
+        // 将页面对象也添加到缓存中
+        const cachedSession = browserCache.get(accountName);
+        if (cachedSession) {
+          cachedSession.page = page;
+          console.log(`[INFO] 成功保存页面实例供下一题使用，无需重新加载`);
+        }
       }
       
       return; // 成功，退出函数
@@ -288,9 +390,14 @@ async function processQuestion(item, accountName, output) {
         }
       }
       
-      // 关闭浏览器
-      if (browser && browser.isConnected()) {
-        await browser.close(); // 在每次重试前关闭浏览器，确保下一次是全新的开始
+      // 如果需要关闭浏览器或遇到严重错误，才关闭浏览器
+      if ((needToCloseBrowser || retryCount >= maxRetry) && browser && browser.isConnected()) {
+        console.log(`[INFO] 关闭浏览器实例，原因: ${needToCloseBrowser ? '非缓存实例' : '重试次数过多'}`);
+        await browser.close();
+        // 从缓存中移除
+        browserCache.delete(accountName);
+      } else {
+        console.log(`[INFO] 保留浏览器实例供下一题使用`);
       }
       
       if (retryCount > maxRetry) {
