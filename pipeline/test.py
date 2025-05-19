@@ -38,7 +38,7 @@ qwen_client = OpenAI(
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
-def call_qwen(prompt, base64_images):
+def call_qwen(base64_images):
     """调用千问API，支持多张图片"""
     # 构建消息内容，包含所有图片
     content = [{"type": "text", "text": prompt_extra}]
@@ -66,6 +66,32 @@ DEFAULT_PDF_PATH = "数学物理方程学习指导与习题解答 (陈才生) (Z
 DEFAULT_JSON_PATH = "数学物理方程学习指导与习题解答 (陈才生) (Z-Library)(OCR).json"
 DEFAULT_OUTPUT_DIR = "三模型表"
 DEFAULT_IMAGES_DIR = "./images"
+DEFAULT_CHECKPOINT_PATH = "checkpoint.npy"  # 添加默认检查点路径
+
+def save_checkpoint(current_subfolder_index, data, checkpoint_path=DEFAULT_CHECKPOINT_PATH):
+    """保存当前处理状态到检查点文件"""
+    checkpoint = {
+        "subfolder_index": current_subfolder_index,
+        "data": data.to_dict('records') if not data.empty else []
+    }
+    np.save(checkpoint_path, checkpoint, allow_pickle=True)
+    print(f"检查点已保存，当前处理到子文件夹索引 {current_subfolder_index}")
+
+def load_checkpoint(checkpoint_path=DEFAULT_CHECKPOINT_PATH):
+    """从检查点文件加载处理状态"""
+    if os.path.exists(checkpoint_path):
+        try:
+            checkpoint = np.load(checkpoint_path, allow_pickle=True).item()
+            subfolder_index = checkpoint.get("subfolder_index", 0)
+            saved_data = checkpoint.get("data", [])
+            data = pd.DataFrame(saved_data) if saved_data else pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
+            print(f"已加载检查点，从子文件夹索引 {subfolder_index} 继续处理，已有 {len(saved_data)} 条数据")
+            return subfolder_index, data
+        except Exception as e:
+            print(f"加载检查点文件失败: {e}")
+    
+    print("没有找到检查点文件或读取失败，将从头开始处理")
+    return 0, pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
 
 def call_deepseek(prompt):
     """调用DeepSeek API"""
@@ -100,19 +126,10 @@ def run_llm_process(llm, ques_id):
             break
     return output
 
-def process_question(problem_obj, json_path, base64_images=None):
+def process_question(json_path, base64_images=None):
     """处理单个问题"""
     global MODEL  # 添加全局变量声明
-    
-    print(f"\n-------------------处理题目 (question_number: {problem_obj.get('id')})----------------------")
-    
-    if "图" in problem_obj.get("question",""):
-        print("[跳过]跳过带图题")
-        return None
-    if "证" in problem_obj["question"]:
-        print("[跳过]跳过证明题")
-        return None
-
+        
     # 提取五元组
     flag = True
     count = 0
@@ -121,17 +138,18 @@ def process_question(problem_obj, json_path, base64_images=None):
         try:
             print(f"[提取五元组]第{count+1}次尝试,使用模型qwen-vl-max...")
             # 使用传入的base64_images调用千问API
-            ans = call_qwen(prompt_extra+"\nQURSTION:"+f"【{problem_obj['id']}】"+problem_obj["question"]+"\nANSWER:"+problem_obj["answer"], base64_images)
+            ans = call_qwen(base64_images)
+            ans = ans.replace('\n','')
             ans_json = json.loads(ans)
             flag = False
             count += 1
         except Exception as e:
             print(f"[提取五元组]Failed:{e}")
             count += 1
-            if count > 5:
+            if count >= 3:
                 return None
-
-    print(f"[提取五元组]Success:成功从【{problem_obj['id']}】中提取出{len(ans_json)}个五元组")
+    
+    print(f"[提取五元组]Success:成功提取出{len(ans_json)}个五元组")
 
     results = []
     if not os.path.exists(rf"input"):
@@ -139,6 +157,12 @@ def process_question(problem_obj, json_path, base64_images=None):
 
     for index, item in enumerate(ans_json):
         print(f"[处理第{index+1}个问题]正在处理第{index+1}个五元组...")
+        if '证明' in item['condition'] or '图' in item['condition']:
+            print(f"[跳过]跳过证明题和带图题")
+            continue
+        if '图' in item['specific_questions'] or '图' in item['solution']:
+            print(f"[跳过]跳过证明题和带图题")
+            continue
 
         now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         item["question_number"] = f"{item['question_number']}_{now}"
@@ -362,6 +386,7 @@ def main():
     parser.add_argument("--json", default=DEFAULT_JSON_PATH, help="提取的PDF文本JSON文件路径")
     parser.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR, help="输出Excel文件目录")
     parser.add_argument("--images_dir", default=DEFAULT_IMAGES_DIR, help="图片目录")
+    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT_PATH, help="检查点文件路径")
     args = parser.parse_args()
     
     # 确保输出目录存在
@@ -372,12 +397,13 @@ def main():
     json_path = args.json
     output_dir = args.output_dir
     images_dir = args.images_dir
+    checkpoint_path = args.checkpoint
     
-    print(f"使用参数:\nPDF文件: {pdf_path}\nJSON文件: {json_path}\n输出目录: {output_dir}\n图片目录: {images_dir}")
+    print(f"使用参数:\nPDF文件: {pdf_path}\nJSON文件: {json_path}\n输出目录: {output_dir}\n图片目录: {images_dir}\n检查点文件: {checkpoint_path}")
 
-    # 创建空的DataFrame
-    data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
-
+    # 从检查点加载数据（如果存在）
+    start_index, data = load_checkpoint(checkpoint_path)
+    
     # 提取PDF文本
     extract_pdf_text(pdf_path, save_dir=json_path)
 
@@ -385,10 +411,10 @@ def main():
     subfolders = [f for f in os.listdir(images_dir) if os.path.isdir(os.path.join(images_dir, f))]
     print(f"找到 {len(subfolders)} 个子文件夹作为问题输入")
 
-    # 处理每个子文件夹作为一个问题
-    for subfolder in subfolders:
+    # 处理每个子文件夹作为一个问题，从检查点位置开始
+    for i, subfolder in enumerate(subfolders[start_index:], start=start_index):
         subfolder_path = os.path.join(images_dir, subfolder)
-        print(f"处理子文件夹: {subfolder_path}")
+        print(f"\n-------------------处理子文件夹 ({i+1}/{len(subfolders)}): {subfolder_path}----------------------")
         
         # 获取子文件夹中的所有图片文件
         image_files = glob.glob(os.path.join(subfolder_path, "*.png")) + glob.glob(os.path.join(subfolder_path, "*.jpg"))
@@ -396,24 +422,6 @@ def main():
         if not image_files:
             print(f"子文件夹 {subfolder} 中没有图片，跳过")
             continue
-            
-        # 读取子文件夹中的问题信息
-        question_info_path = os.path.join(subfolder_path, "question.json")
-        if os.path.exists(question_info_path):
-            try:
-                with open(question_info_path, "r", encoding="utf-8") as f:
-                    problem_obj = json.load(f)
-            except Exception as e:
-                print(f"读取问题信息文件失败: {e}")
-                continue
-        else:
-            # 如果没有问题信息文件，创建一个默认的问题对象
-            problem_obj = {
-                "id": subfolder,
-                "question": f"来自文件夹 {subfolder} 的问题",
-                "answer": "无答案"
-            }
-        
         # 将所有图片转换为base64
         base64_images = []
         for image_file in image_files:
@@ -425,16 +433,27 @@ def main():
                 print(f"转换图片 {image_file} 失败: {e}")
         
         # 处理问题
-        results = process_question(problem_obj, json_path, base64_images)
+        results = process_question(json_path, base64_images)
         if results:
             data = pd.concat([data, pd.DataFrame(results)], ignore_index=True)
-    
+            
+        # 保存检查点（每处理一个子文件夹后）
+        save_checkpoint(i + 1, data, checkpoint_path)
+        
     # 保存Excel文件
     now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
     file_path = os.path.join(output_dir, f"国内三模型_{now_time}.xlsx")
     save_to_excel(data, file_path)
     print(f"已保存Excel文件: {file_path}")
     print("所有问题处理完毕")
+    
+    # 处理完所有数据后，可以选择删除检查点文件
+    if os.path.exists(checkpoint_path):
+        try:
+            os.remove(checkpoint_path)
+            print(f"所有处理完成，已删除检查点文件: {checkpoint_path}")
+        except Exception as e:
+            print(f"删除检查点文件失败: {e}")
 
 if __name__ == "__main__":
     main() 
