@@ -7,3 +7,4 @@ logs/*
 .env
 input/*
 三模型表/*
+*.pyc

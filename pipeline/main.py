@@ -12,6 +12,10 @@ import random
 import threading
 import numpy as np
 import argparse
+import random
+import threading
+import numpy as np
+import argparse
 import base64
 
 # 如果存在 .env 文件,从中加载环境变量
@@ -23,45 +27,6 @@ client = OpenAI(
     base_url="https://api.deepseek.com",
 )
 MODEL = "deepseek-chat"
-
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
-
-# 将xxxx/eagle.png替换为你本地图像的绝对路径
-base64_image1 = encode_image("images/1.png")
-base64_image2 = encode_image("images/2.png")
-
-qwen_client = OpenAI(
-    # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx"
-    api_key= os.getenv("qwen_api"),
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-)
-
-def call_qwen(prompt):
-    qwen_completion = qwen_client.chat.completions.create(
-        model="qwen-vl-max", # 此处以qwen-vl-max-latest为例，可按需更换模型名称。模型列表：https://help.aliyun.com/model-studio/getting-started/model
-        messages=[
-            {
-                "role": "system",
-                "content": [{"type":"text","text":prompt_extra}]},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image1}"}
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image2}"}
-                    }
-                ],
-            }
-        ],
-        response_format={"type": "json_object"}
-    )
-    return qwen_completion.choices[0].message.content
 
 # 默认文件路径配置
 DEFAULT_INPUT_FILE = "split_questions\\questions_part_1_of_3.json"
