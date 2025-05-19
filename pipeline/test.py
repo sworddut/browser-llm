@@ -13,6 +13,7 @@ import threading
 import numpy as np
 import argparse
 import base64
+import glob
 
 # 如果存在 .env 文件,从中加载环境变量
 load_dotenv()
@@ -29,8 +30,7 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 # 将xxxx/eagle.png替换为你本地图像的绝对路径
-base64_image1 = encode_image("images/1.png")
-base64_image2 = encode_image("images/2.png")
+
 
 qwen_client = OpenAI(
     # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx"
@@ -38,37 +38,34 @@ qwen_client = OpenAI(
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
-def call_qwen(prompt):
+def call_qwen(prompt, base64_images):
+    """调用千问API，支持多张图片"""
+    # 构建消息内容，包含所有图片
+    content = [{"type": "text", "text": prompt_extra}]
+    
+    # 构建用户消息，包含文本和所有图片
+    user_content = []
+    for img in base64_images:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{img}"}
+        })
+    
     qwen_completion = qwen_client.chat.completions.create(
-        model="qwen-vl-max", # 此处以qwen-vl-max-latest为例，可按需更换模型名称。模型列表：https://help.aliyun.com/model-studio/getting-started/model
+        model="qwen-vl-max",
         messages=[
-            {
-                "role": "system",
-                "content": [{"type":"text","text":prompt_extra}]},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image1}"}
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image2}"}
-                    }
-                ],
-            }
+            {"role": "system", "content": content},
+            {"role": "user", "content": user_content}
         ],
         response_format={"type": "json_object"}
     )
     return qwen_completion.choices[0].message.content
 
 # 默认文件路径配置
-DEFAULT_INPUT_FILE = "split_questions\\questions_part_1_of_3.json"
-DEFAULT_CHECKPOINT_FILE = "last_process.npy"
 DEFAULT_PDF_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).pdf"
 DEFAULT_JSON_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).json"
 DEFAULT_OUTPUT_DIR = "三模型表"
+DEFAULT_IMAGES_DIR = "./images"
 
 def call_deepseek(prompt):
     """调用DeepSeek API"""
@@ -103,7 +100,7 @@ def run_llm_process(llm, ques_id):
             break
     return output
 
-def process_question(problem_obj, json_path):
+def process_question(problem_obj, json_path, base64_images=None):
     """处理单个问题"""
     global MODEL  # 添加全局变量声明
     
@@ -122,9 +119,10 @@ def process_question(problem_obj, json_path):
     ans_json = {}
     while flag:
         try:
-            print(f"[提取五元组]第{count+1}次尝试,使用模型{MODEL}...")
-            ans = call_deepseek(prompt_extra+"\nQURSTION:"+f"【{problem_obj['id']}】"+problem_obj["question"]+"\nANSWER:"+problem_obj["answer"])
-            ans_json = json.loads(ans)["result"]
+            print(f"[提取五元组]第{count+1}次尝试,使用模型qwen-vl-max...")
+            # 使用传入的base64_images调用千问API
+            ans = call_qwen(prompt_extra+"\nQURSTION:"+f"【{problem_obj['id']}】"+problem_obj["question"]+"\nANSWER:"+problem_obj["answer"], base64_images)
+            ans_json = json.loads(ans)
             flag = False
             count += 1
         except Exception as e:
@@ -357,83 +355,85 @@ def main():
     """主函数"""
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="处理物理题目并生成Excel表格")
-    parser.add_argument("--input", default=DEFAULT_INPUT_FILE, help="输入JSON文件路径")
-    parser.add_argument("--checkpoint", default=DEFAULT_CHECKPOINT_FILE, help="检查点文件路径")
     parser.add_argument("--pdf", default=DEFAULT_PDF_PATH, help="PDF文件路径")
     parser.add_argument("--json", default=DEFAULT_JSON_PATH, help="提取的PDF文本JSON文件路径")
     parser.add_argument("--output_dir", default=DEFAULT_OUTPUT_DIR, help="输出Excel文件目录")
+    parser.add_argument("--images_dir", default=DEFAULT_IMAGES_DIR, help="图片目录")
     args = parser.parse_args()
     
     # 确保输出目录存在
     os.makedirs(args.output_dir, exist_ok=True)
     
     # 使用命令行参数设置文件路径
-    input_file = args.input
-    checkpoint_file = args.checkpoint
     pdf_path = args.pdf
     json_path = args.json
     output_dir = args.output_dir
+    images_dir = args.images_dir
     
-    print(f"使用参数:\n输入文件: {input_file}\n检查点文件: {checkpoint_file}\nPDF文件: {pdf_path}\nJSON文件: {json_path}\n输出目录: {output_dir}")
+    print(f"使用参数:\nPDF文件: {pdf_path}\nJSON文件: {json_path}\n输出目录: {output_dir}\n图片目录: {images_dir}")
 
-    # 尝试加载之前的处理进度
-    if os.path.exists(checkpoint_file):
-        try:
-            checkpoint = np.load(checkpoint_file, allow_pickle=True).item()
-            question_numberx = checkpoint.get("question_numberx", 0)
-            data = checkpoint.get("data", pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"]))
-            print(f"已从检查点恢复，继续处理第 {question_numberx} 个问题，已有 {len(data)} 条记录")
-        except Exception as e:
-            print(f"加载检查点失败: {e}，将从头开始处理")
-            question_numberx = 0
-            data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
-    else:
-        print("未找到检查点文件，将从头开始处理")
-        question_numberx = 0
-        data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
-
-    # 加载题目数据
-    try:
-        with open(input_file, "r", encoding="utf-8") as f:
-            original_questions = json.load(f)
-    except FileNotFoundError:
-        print(f"错误:未找到输入文件 {input_file}。")
-        return
+    # 创建空的DataFrame
+    data = pd.DataFrame(columns=['id',"问题条件","具体问题","问题数目","适合年级","题目类型","题目学科","子学科","领域类型","是否包含图片","考察知识点","易错点","思考过程/分析","解题过程","最终答案","错误解题方法","错误解法模型","错误模型","三模型打分","deepseek","千问","豆包","题目来源"])
 
     # 提取PDF文本
     extract_pdf_text(pdf_path, save_dir=json_path)
 
-    # 处理每个问题，从上次的位置继续
-    for idx, problem_obj in enumerate(original_questions[question_numberx:], question_numberx):
-        results = process_question(problem_obj, json_path)
+    # 获取images目录下的所有子目录
+    subfolders = [f for f in os.listdir(images_dir) if os.path.isdir(os.path.join(images_dir, f))]
+    print(f"找到 {len(subfolders)} 个子文件夹作为问题输入")
+
+    # 处理每个子文件夹作为一个问题
+    for subfolder in subfolders:
+        subfolder_path = os.path.join(images_dir, subfolder)
+        print(f"处理子文件夹: {subfolder_path}")
+        
+        # 获取子文件夹中的所有图片文件
+        image_files = glob.glob(os.path.join(subfolder_path, "*.png")) + glob.glob(os.path.join(subfolder_path, "*.jpg"))
+        
+        if not image_files:
+            print(f"子文件夹 {subfolder} 中没有图片，跳过")
+            continue
+            
+        # 读取子文件夹中的问题信息
+        question_info_path = os.path.join(subfolder_path, "question.json")
+        if os.path.exists(question_info_path):
+            try:
+                with open(question_info_path, "r", encoding="utf-8") as f:
+                    problem_obj = json.load(f)
+            except Exception as e:
+                print(f"读取问题信息文件失败: {e}")
+                continue
+        else:
+            # 如果没有问题信息文件，创建一个默认的问题对象
+            problem_obj = {
+                "id": subfolder,
+                "question": f"来自文件夹 {subfolder} 的问题",
+                "answer": "无答案"
+            }
+        
+        # 将所有图片转换为base64
+        base64_images = []
+        for image_file in image_files:
+            try:
+                base64_img = encode_image(image_file)
+                base64_images.append(base64_img)
+                print(f"已转换图片: {image_file}")
+            except Exception as e:
+                print(f"转换图片 {image_file} 失败: {e}")
+        
+        # 处理问题
+        results = process_question(problem_obj, json_path, base64_images)
         if results:
             data = pd.concat([data, pd.DataFrame(results)], ignore_index=True)
-        
-        # 更新处理进度
-        question_numberx = idx + 1
-        
-        # 保存检查点
-        checkpoint_data = {
-            "question_numberx": question_numberx,
-            "data": data
-        }
-        np.save(checkpoint_file, checkpoint_data)
-        print(f"已保存检查点，当前处理到第 {question_numberx} 个问题，共 {len(data)} 条记录")
-        
-        # 每处理5道题保存一次Excel
-        if question_numberx % 5 == 0 or question_numberx == len(original_questions):
-            now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
-            file_path = os.path.join(output_dir, f"国内三模型_{now_time}.xlsx")
-            save_to_excel(data, file_path)
-            print(f"已保存Excel文件: {file_path}")
-
-    # 处理完所有问题后再保存一次Excel
+    
+    # 保存Excel文件
     now_time = time.strftime("%Y-%m-%d_%H%M%S", time.localtime())
     file_path = os.path.join(output_dir, f"国内三模型_{now_time}.xlsx")
     save_to_excel(data, file_path)
+    print(f"已保存Excel文件: {file_path}")
     print("所有问题处理完毕")
 
 if __name__ == "__main__":
     main() 
 
-    # python pipeline\main.py --input split_questions\questions_part_1_of_3.json -checkpoint last_process_zht.npy
+    # python pipeline\test.py

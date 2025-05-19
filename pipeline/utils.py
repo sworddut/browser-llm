@@ -82,9 +82,7 @@ def extract_pdf_text(pdf_path, save_dir=None):
         with pdfplumber.open(pdf_path) as pdf:
             total_pages = len(pdf.pages)
             extracted_data["total_pages"] = total_pages
-            
-            print(f"PDF总页数: {total_pages}")
-            
+                        
             for page_num, page in enumerate(pdf.pages):
                 current_page = page_num + 1  # 页码从1开始
                 print(f"正在提取第 {current_page}/{total_pages} 页...")
@@ -125,7 +123,7 @@ def find_text_in_saved_pdf(text_file_path, search_text):
         total_pages = pdf_data.get("total_pages", 0)
         pages_data = pdf_data.get("pages", {})
         
-        print(f"PDF总页数: {total_pages}")
+        # print(f"PDF总页数: {total_pages}")
         
         # 遍历每一页
         for page_num in range(1, total_pages + 1):
@@ -176,7 +174,7 @@ def save_to_excel(data, file_path):
     """保存数据到Excel文件，包括图片处理"""
     # 清理非法字符
     ILLEGAL_CHARACTERS_RE = re.compile(r"[\000-\010]|[\013-\014]|[\016-\037]")
-    data = data.map(lambda x: ILLEGAL_CHARACTERS_RE.sub("", str(x)))
+    data = data.applymap(lambda x: ILLEGAL_CHARACTERS_RE.sub("", str(x)))
 
     # 获取图片基准目录（browser-llm目录）
     base_dir = os.path.abspath(os.path.join(os.path.dirname(file_path), '..'))
@@ -205,10 +203,12 @@ def save_to_excel(data, file_path):
                             # 创建图片对象
                             img = Image(img_path)
                             # 调整图片大小
-                            img.width = 100
-                            img.height = 100
+                            img.width = 20
+                            img.height = 20
                             # 将图片添加到单元格
                             ws.add_image(img, cell.coordinate)
+                            # 清空单元格中的图片路径文本
+                            cell.value = ""
                         except Exception as e:
                             print(f"添加图片到 {cell.coordinate} 时出错: {str(e)}")
         
