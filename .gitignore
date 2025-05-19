@@ -1,6 +1,11 @@
 node_modules
 */outputs/*
 debug
-output/*
 temp/*
+output/*
 logs/*
+.env
+input/*
+三模型表/*
+*.pyc
+images/*
