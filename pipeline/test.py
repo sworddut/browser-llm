@@ -62,8 +62,8 @@ def call_qwen(prompt, base64_images):
     return qwen_completion.choices[0].message.content
 
 # 默认文件路径配置
-DEFAULT_PDF_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).pdf"
-DEFAULT_JSON_PATH = "物理学难题集萃(增订本)【舒幼生等】_part1(OCR).json"
+DEFAULT_PDF_PATH = "数学物理方程学习指导与习题解答 (陈才生) (Z-Library)(OCR).pdf"
+DEFAULT_JSON_PATH = "数学物理方程学习指导与习题解答 (陈才生) (Z-Library)(OCR).json"
 DEFAULT_OUTPUT_DIR = "三模型表"
 DEFAULT_IMAGES_DIR = "./images"
 
@@ -134,6 +134,9 @@ def process_question(problem_obj, json_path, base64_images=None):
     print(f"[提取五元组]Success:成功从【{problem_obj['id']}】中提取出{len(ans_json)}个五元组")
 
     results = []
+    if not os.path.exists(rf"input"):
+        os.makedirs(rf"input")
+
     for index, item in enumerate(ans_json):
         print(f"[处理第{index+1}个问题]正在处理第{index+1}个五元组...")
 
@@ -345,7 +348,7 @@ def process_question(problem_obj, json_path, base64_images=None):
             "deepseek": ds_jietu,
             "千问": qw_jietu,
             "豆包": db_jietu,
-            "题目来源": f"物理学难题集萃(增订本)【舒幼生等】_part1,第{page}页" if page else "未知",
+            "题目来源": f"数学物理方程学习指导与习题解答 (陈才生) (Z-Library),第{page}页" if page else "未知",
         }
         results.append(result_row)
 
