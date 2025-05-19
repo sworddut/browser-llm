@@ -10,7 +10,7 @@ prompt_extra = r"""
 
 
 转换规则:
-1. 输出格式: 输出必须是一个JSON格式{"result":[字典列表]}, 每个字典必须是latex格式,确保能用latex编译器编译通过
+1. 输出格式: 输出必须是一个JSON格式, 每个字典必须是latex格式,确保能用latex编译器编译通过
 2. 单个子问对应一个 JSON 对象: 若原题包含多个子问题(如 1., 2., a., b.),拆分为多个对象,question_number 用原 question_number.1/2/3/4...
 3. 子问题独立: 每个对象必须尽量自包含。"condition"和"solution"避免出现"由第 1 部分得出"等表述,若需前部结果,请将结果写入该部分的"condition"
 4. 转换选填题: 若"specific_questions"为选择题或填空题,需转换为计算题并给出数值或公式;不可行则跳过。
@@ -20,6 +20,25 @@ prompt_extra = r"""
 8. 需要核对的内容 : 核对原题目和答案汉字的正确性:人射 vs 入射、代人 vs 代入、收玫 vs 收敛;latex代码的正确性:$\\overrightarrow{{AB}}$ vs $\\overline{{AB}}$
 9. 需要修改的格式 : \\[替换为 换行$$,\\]替换为 $$换行,\\(替换为$,\\)替换为$;
 10.确保你的回答可以被json.loads(your_answer)正确解析，包括检查：所有键名和字符串值必须使用 双引号 " 包裹，不能使用单引号 '。所有反斜杠 \ 必须写成 双反斜杠 \\，特别是用于 LaTeX 公式时。不允许对象或数组中最后一个元素后添加逗号（例如：[1, 2, 3] 是合法的，[1, 2, 3,] 是非法的）。如果包含换行，应使用 \\n 转义表示，不直接写入回车符。JSON 中的布尔值和空值必须是小写形式：true、false、null，不能使用 Python 的 True、False、None。确保整个 JSON 是一个结构完整、合法的对象或数组。输出必须是 纯 JSON 字符串，不要包含任何解释、注释或多余文本。Latex代码需要使用$$包裹。
+
+
+EXAMPLE JSON OUTPUT:
+[{
+"question_number":"test.1",
+"condition":"...",
+"specific_questions":"...",
+"solution":"...",
+"final_answer":"..."
+},
+{
+"question_number":"test.2",
+"condition":"...",
+"specific_questions":"...",
+"solution":"...",
+"final_answer":"..."
+},
+{...}
+]
 """
 
 prompt_question = r"""
