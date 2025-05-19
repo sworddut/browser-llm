@@ -27,7 +27,7 @@ const TIMEOUT = {
 // 主函数：处理单个问题
 async function processQuestion(item, accountName, output) {
   // 构建提示词
-  const prompt = `条件：${item.condition}\n\n问题：${item.specific_questions}`;
+  const prompt = `条件：${item.condition}\n\n问题：${item.specific_questions} \n不要思考太长时间，回答尽量简短，回答篇幅不要太长。`;
   
   // 准备输出目录和文件路径
   const outputBasePath = output || path.join(__dirname, 'outputs');
@@ -223,7 +223,7 @@ async function initBrowser(accountName, questionNumber) {
   }
   
   const page = await context.newPage();
-  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.setViewportSize({ width: 1920, height: 3240 });
   
   // 监听权限请求并自动接受
   page.context().on('page', async newPage => {

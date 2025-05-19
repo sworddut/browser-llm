@@ -17,7 +17,7 @@ const sseInterceptor = require('./utils/sseInterceptor.js');
  */
 async function processQuestion(item, accountName, output) {
   // 构建提示词
-  const prompt = `条件：${item.condition}\n\n问题：${item.specific_questions}`;
+  const prompt = `条件：${item.condition}\n\n问题：${item.specific_questions} \n不要思考太长时间，回答尽量简短，回答篇幅不要太长。`;
   const answerSelector = 'div[theme-mode][dir="ltr"].flow-markdown-body'; // 豆包的回答容器选择器
   
   // 使用自定义输出路径或默认路径
@@ -70,7 +70,7 @@ async function processQuestion(item, accountName, output) {
       
       // 创建页面
       page = await context.newPage();
-      await page.setViewportSize({ width: 1920, height: 1080 }); // 设置一致的视口大小
+      await page.setViewportSize({ width: 1920, height: 3240 }); // 设置一致的视口大小
       
       // 注入 SSE 拦截脚本
       await sseInterceptor.injectSSEInterceptor(page, 'PullExperienceMessage', { 

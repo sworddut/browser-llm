@@ -8,3 +8,4 @@ logs/*
 input/*
 三模型表/*
 *.pyc
+images/*
